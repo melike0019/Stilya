@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import 'auth_screen.dart';
-import '../../screens/home/home_screen.dart';
+import '../main_shell.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -24,7 +24,7 @@ class AuthGate extends StatelessWidget {
       return const AuthScreen();
     }
 
-    return const HomeScreen();
+    return const MainShell();
   }
 }
 
