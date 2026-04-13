@@ -7,6 +7,7 @@ import 'providers/auth_provider.dart';
 import 'providers/clothing_provider.dart';
 import 'providers/outfit_provider.dart';
 import 'providers/user_provider.dart';
+import 'providers/weather_provider.dart';
 import 'screens/auth/auth_gate.dart';
 
 void main() async {
@@ -28,6 +29,9 @@ void main() async {
         ),
         ChangeNotifierProvider<OutfitProvider>(
           create: (_) => OutfitProvider(),
+        ),
+        ChangeNotifierProvider<WeatherProvider>(
+          create: (_) => WeatherProvider(),
         ),
       ],
       child: const MyApp(),

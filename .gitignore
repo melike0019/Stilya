@@ -51,8 +51,12 @@ GoogleService-Info.plist
 .env
 *.env
 
+# API anahtarları — asla GitHub'a gönderme
+lib/core/api_config.dart
+
 # Firebase Functions
 functions/.runtimeconfig.json
 # Build outputs
 android/build/
 build/
+.claude/
