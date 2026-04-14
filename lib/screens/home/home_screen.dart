@@ -1,48 +1,47 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
+import '../../models/clothing_item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/clothing_provider.dart';
 import '../../providers/weather_provider.dart';
 import '../../services/ai_service.dart';
+import '../../theme/app_theme.dart';
 import 'ai_chat_screen.dart';
 
-// ---------------------------------------------------------------------------
-// Sabit veriler
-// ---------------------------------------------------------------------------
+// ─── Sabit veriler ─────────────────────────────────────────────────────────
 const List<Map<String, String>> _moods = [
-  {'label': 'Enerjik', 'emoji': '⚡'},
-  {'label': 'Özgüvenli', 'emoji': '💪'},
-  {'label': 'Sakin', 'emoji': '🌿'},
-  {'label': 'Romantik', 'emoji': '🌸'},
-  {'label': 'Yaratıcı', 'emoji': '🎨'},
-  {'label': 'Stresli', 'emoji': '😤'},
+  {'label': 'Enerjik',   'emoji': '⚡'},
+  {'label': 'Özgüvenli', 'emoji': '✨'},
+  {'label': 'Sakin',     'emoji': '🌿'},
+  {'label': 'Romantik',  'emoji': '🌸'},
+  {'label': 'Yaratıcı',  'emoji': '🎨'},
+  {'label': 'Stresli',   'emoji': '😤'},
 ];
 
 const List<Map<String, String>> _occasions = [
-  {'label': 'Günlük', 'emoji': '☀️'},
+  {'label': 'Günlük',        'emoji': '☀️'},
   {'label': 'İş / Toplantı', 'emoji': '💼'},
-  {'label': 'Brunch', 'emoji': '🥂'},
-  {'label': 'Spor', 'emoji': '🏃'},
-  {'label': 'Gece Çıkışı', 'emoji': '🌙'},
-  {'label': 'Ev', 'emoji': '🏠'},
+  {'label': 'Brunch',        'emoji': '🥂'},
+  {'label': 'Spor',          'emoji': '🏃'},
+  {'label': 'Gece Çıkışı',   'emoji': '🌙'},
+  {'label': 'Ev',            'emoji': '🏠'},
 ];
 
 const Map<String, IconData> _weatherIcons = {
-  'Clear': Icons.wb_sunny,
-  'Clouds': Icons.cloud,
-  'Rain': Icons.umbrella,
+  'Clear': Icons.wb_sunny_rounded,
+  'Clouds': Icons.cloud_rounded,
+  'Rain': Icons.umbrella_rounded,
   'Drizzle': Icons.grain,
-  'Thunderstorm': Icons.thunderstorm,
-  'Snow': Icons.ac_unit,
-  'Mist': Icons.blur_on,
-  'Fog': Icons.blur_on,
-  'Haze': Icons.blur_on,
+  'Thunderstorm': Icons.thunderstorm_rounded,
+  'Snow': Icons.ac_unit_rounded,
+  'Mist': Icons.blur_on_rounded,
+  'Fog': Icons.blur_on_rounded,
+  'Haze': Icons.blur_on_rounded,
 };
 
-// ---------------------------------------------------------------------------
-// HomeScreen
-// ---------------------------------------------------------------------------
+// ─── HomeScreen ─────────────────────────────────────────────────────────────
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
 
@@ -51,11 +50,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  String _selectedMood = 'Enerjik';
+  String _selectedMood     = 'Enerjik';
   String _selectedOccasion = 'Günlük';
 
   OutfitSuggestion? _suggestion;
-  bool _isSuggesting = false;
+  bool _isSuggesting    = false;
   String? _suggestionError;
 
   @override
@@ -67,18 +66,15 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _getSuggestion() async {
-    final clothing = context.read<ClothingProvider>();
+    final clothing    = context.read<ClothingProvider>();
     final weatherProv = context.read<WeatherProvider>();
 
     if (clothing.items.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Önce Gardırop sekmesinden kıyafet ekle!'),
-        ),
+        const SnackBar(content: Text('Önce Gardırop sekmesinden kıyafet ekle!')),
       );
       return;
     }
-
     if (!weatherProv.hasWeather) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Hava durumu henüz yüklenmedi.')),
@@ -88,7 +84,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     setState(() {
       _isSuggesting = true;
-      _suggestion = null;
+      _suggestion   = null;
       _suggestionError = null;
     });
 
@@ -109,189 +105,153 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    final user = auth.user;
-    final displayName = user?.displayName;
-    final name = (displayName != null && displayName.isNotEmpty)
-        ? displayName.split(' ').first
+    final auth     = context.watch<AuthProvider>();
+    final user     = auth.user;
+    final dn       = user?.displayName;
+    final name     = (dn != null && dn.isNotEmpty)
+        ? dn.split(' ').first
         : (user?.email ?? 'Kullanıcı');
-    final weather = context.watch<WeatherProvider>();
+    final weather  = context.watch<WeatherProvider>();
     final clothing = context.watch<ClothingProvider>();
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Stilya'),
-        centerTitle: false,
-        actions: [
-          IconButton(
-            tooltip: 'Stil Asistanı',
-            icon: const Icon(Icons.chat_bubble_outline),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => AIChatScreen(
-                  clothingItems: clothing.items,
+      backgroundColor: AppTheme.bgStart,
+      body: CustomScrollView(
+        slivers: [
+          // ── App Bar ─────────────────────────────────────────────
+          SliverAppBar(
+            expandedHeight: 140,
+            floating: false,
+            pinned: true,
+            backgroundColor: Colors.white,
+            elevation: 0,
+            flexibleSpace: FlexibleSpaceBar(
+              background: Container(
+                decoration: const BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [AppTheme.darkRose, AppTheme.primaryRose],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 60, 20, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Merhaba, $name ✨',
+                      style: GoogleFonts.playfairDisplay(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Bugün nasıl bir stil yaratmak istersin?',
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.white.withAlpha(200),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              titlePadding: EdgeInsets.zero,
+              title: null,
             ),
-          ),
-        ],
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
-        children: [
-          // -----------------------------------------------------------------
-          // 1. Selamlama
-          // -----------------------------------------------------------------
-          Text(
-            'Merhaba, $name 👋',
-            style: Theme.of(context)
-                .textTheme
-                .headlineSmall
-                ?.copyWith(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'Bugün nasıl bir stil yaratmak istersin?',
-            style: Theme.of(context)
-                .textTheme
-                .bodyMedium
-                ?.copyWith(color: Colors.grey),
-          ),
-          const SizedBox(height: 20),
-
-          // -----------------------------------------------------------------
-          // 2. Hava Durumu Kartı
-          // -----------------------------------------------------------------
-          _WeatherCard(provider: weather),
-          const SizedBox(height: 24),
-
-          // -----------------------------------------------------------------
-          // 3. Mod Seçimi
-          // -----------------------------------------------------------------
-          _SectionTitle('Nasıl hissediyorsun?'),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 44,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _moods.length,
-              itemBuilder: (_, i) {
-                final mood = _moods[i];
-                final label = mood['label']!;
-                final isSelected = _selectedMood == label;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text('${mood['emoji']} $label'),
-                    selected: isSelected,
-                    onSelected: (_) =>
-                        setState(() => _selectedMood = label),
+            title: Text(
+              'STILYA',
+              style: GoogleFonts.playfairDisplay(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: AppTheme.textDark,
+              ),
+            ),
+            centerTitle: false,
+            actions: [
+              IconButton(
+                tooltip: 'Stil Asistanı',
+                icon: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppTheme.lightRose,
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                );
-              },
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // -----------------------------------------------------------------
-          // 4. Etkinlik Seçimi
-          // -----------------------------------------------------------------
-          _SectionTitle('Bugün ne var?'),
-          const SizedBox(height: 10),
-          SizedBox(
-            height: 44,
-            child: ListView.builder(
-              scrollDirection: Axis.horizontal,
-              itemCount: _occasions.length,
-              itemBuilder: (_, i) {
-                final occ = _occasions[i];
-                final label = occ['label']!;
-                final isSelected = _selectedOccasion == label;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text('${occ['emoji']} $label'),
-                    selected: isSelected,
-                    onSelected: (_) =>
-                        setState(() => _selectedOccasion = label),
+                  child: const Icon(Icons.chat_bubble_outline_rounded,
+                      size: 18, color: AppTheme.primaryRose),
+                ),
+                onPressed: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => AIChatScreen(clothingItems: clothing.items),
                   ),
-                );
-              },
-            ),
+                ),
+              ),
+              const SizedBox(width: 8),
+            ],
           ),
-          const SizedBox(height: 28),
 
-          // -----------------------------------------------------------------
-          // 5. Kombin Öner Butonu
-          // -----------------------------------------------------------------
-          FilledButton.icon(
-            onPressed: _isSuggesting ? null : _getSuggestion,
-            style: FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-            ),
-            icon: _isSuggesting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child:
-                        CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  )
-                : const Icon(Icons.auto_awesome),
-            label: Text(
-              _isSuggesting ? 'Kombin hazırlanıyor…' : 'Kombin Öner',
-              style: const TextStyle(fontSize: 16),
-            ),
-          ),
-          const SizedBox(height: 16),
+          // ── Body ────────────────────────────────────────────────
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                // Hava Durumu
+                _WeatherCard(provider: weather),
+                const SizedBox(height: 20),
 
-          // -----------------------------------------------------------------
-          // 6. Hata mesajı
-          // -----------------------------------------------------------------
-          if (_suggestionError != null)
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Text(
-                _suggestionError!,
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.onErrorContainer),
-              ),
-            ),
+                // Mood
+                _SectionHeader(
+                  icon: Icons.favorite_outline_rounded,
+                  title: 'Nasıl hissediyorsun?',
+                ),
+                const SizedBox(height: 10),
+                _HorizontalChips(
+                  items: _moods,
+                  selected: _selectedMood,
+                  onSelect: (v) => setState(() => _selectedMood = v),
+                ),
+                const SizedBox(height: 20),
 
-          // -----------------------------------------------------------------
-          // 7. AI Kombin Sonuç Kartı
-          // -----------------------------------------------------------------
-          if (_suggestion != null) ...[
-            const SizedBox(height: 8),
-            _SuggestionCard(suggestion: _suggestion!),
-          ],
+                // Occasion
+                _SectionHeader(
+                  icon: Icons.event_note_outlined,
+                  title: 'Bugün ne var?',
+                ),
+                const SizedBox(height: 10),
+                _HorizontalChips(
+                  items: _occasions,
+                  selected: _selectedOccasion,
+                  onSelect: (v) => setState(() => _selectedOccasion = v),
+                ),
+                const SizedBox(height: 24),
 
-          // -----------------------------------------------------------------
-          // 8. Stil Asistanı Butonu
-          // -----------------------------------------------------------------
-          const SizedBox(height: 24),
-          OutlinedButton.icon(
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) =>
-                    AIChatScreen(clothingItems: clothing.items),
-              ),
+                // AI Button
+                _SuggestButton(
+                  isSuggesting: _isSuggesting,
+                  onPressed: _getSuggestion,
+                ),
+                const SizedBox(height: 12),
+
+                // Stil Asistanı
+                _ChatButton(clothingItems: clothing.items),
+
+                // Error
+                if (_suggestionError != null) ...[
+                  const SizedBox(height: 12),
+                  _ErrorCard(message: _suggestionError!),
+                ],
+
+                // Suggestion result
+                if (_suggestion != null) ...[
+                  const SizedBox(height: 12),
+                  _SuggestionCard(suggestion: _suggestion!),
+                ],
+              ]),
             ),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14)),
-            ),
-            icon: const Icon(Icons.chat_bubble_outline),
-            label: const Text('Stil Asistanıyla Konuş',
-                style: TextStyle(fontSize: 15)),
           ),
         ],
       ),
@@ -299,9 +259,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Hava Durumu Kartı
-// ---------------------------------------------------------------------------
+// ─── Hava Durumu Kartı ──────────────────────────────────────────────────────
 class _WeatherCard extends StatelessWidget {
   final WeatherProvider provider;
   const _WeatherCard({required this.provider});
@@ -309,31 +267,37 @@ class _WeatherCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (provider.isLoading) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(20),
-          child: Center(child: CircularProgressIndicator()),
+      return Container(
+        height: 90,
+        decoration: BoxDecoration(
+          color: AppTheme.lightRose,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: const Center(
+          child: CircularProgressIndicator(
+              strokeWidth: 2, color: AppTheme.primaryRose),
         ),
       );
     }
 
     if (provider.errorMessage != null) {
-      return Card(
-        color: Theme.of(context).colorScheme.errorContainer,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              const Icon(Icons.cloud_off, color: Colors.grey),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  provider.errorMessage!,
-                  style: const TextStyle(color: Colors.grey, fontSize: 13),
-                ),
-              ),
-            ],
-          ),
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFFCE8F3),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AppTheme.dividerColor),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.cloud_off_rounded, color: AppTheme.textLight),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(provider.errorMessage!,
+                  style: GoogleFonts.poppins(
+                      fontSize: 12, color: AppTheme.textLight)),
+            ),
+          ],
         ),
       );
     }
@@ -341,56 +305,235 @@ class _WeatherCard extends StatelessWidget {
     final w = provider.weather;
     if (w == null) return const SizedBox.shrink();
 
-    final icon = _weatherIcons[w.condition] ?? Icons.wb_cloudy;
-    final colorScheme = Theme.of(context).colorScheme;
+    final icon = _weatherIcons[w.condition] ?? Icons.wb_cloudy_rounded;
 
-    return Card(
-      color: colorScheme.primaryContainer,
-      elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Row(
-          children: [
-            Icon(icon, size: 48, color: colorScheme.primary),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    w.cityName,
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onPrimaryContainer,
-                        ),
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [AppTheme.darkRose, AppTheme.primaryRose],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryRose.withAlpha(70),
+            blurRadius: 16,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 48, color: Colors.white),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  w.cityName,
+                  style: GoogleFonts.poppins(
+                      fontSize: 11, color: Colors.white.withAlpha(180)),
+                ),
+                Text(
+                  w.temperatureStr,
+                  style: GoogleFonts.playfairDisplay(
+                      fontSize: 28, fontWeight: FontWeight.w700,
+                      color: Colors.white),
+                ),
+                Text(
+                  w.conditionTr,
+                  style: GoogleFonts.poppins(
+                      fontSize: 12, color: Colors.white.withAlpha(200)),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              _WeatherBadge(icon: Icons.water_drop_outlined,
+                  value: '%${w.humidity}'),
+              const SizedBox(height: 6),
+              _WeatherBadge(icon: Icons.air_rounded,
+                  value: '${w.windSpeed.toStringAsFixed(1)} m/s'),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeatherBadge extends StatelessWidget {
+  final IconData icon;
+  final String value;
+  const _WeatherBadge({required this.icon, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white.withAlpha(40),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: Colors.white),
+          const SizedBox(width: 4),
+          Text(value,
+              style: GoogleFonts.poppins(
+                  fontSize: 11, color: Colors.white,
+                  fontWeight: FontWeight.w500)),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Section Header ─────────────────────────────────────────────────────────
+class _SectionHeader extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  const _SectionHeader({required this.icon, required this.title});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: AppTheme.primaryRose),
+        const SizedBox(width: 6),
+        Text(
+          title,
+          style: GoogleFonts.poppins(
+              fontSize: 14, fontWeight: FontWeight.w600,
+              color: AppTheme.textDark),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Horizontal Chip List ────────────────────────────────────────────────────
+class _HorizontalChips extends StatelessWidget {
+  final List<Map<String, String>> items;
+  final String selected;
+  final ValueChanged<String> onSelect;
+  const _HorizontalChips({
+    required this.items,
+    required this.selected,
+    required this.onSelect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 40,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: items.length,
+        itemBuilder: (_, i) {
+          final item  = items[i];
+          final label = item['label']!;
+          final isSelected = selected == label;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: GestureDetector(
+              onTap: () => onSelect(label),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isSelected ? AppTheme.primaryRose : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: isSelected
+                        ? AppTheme.primaryRose
+                        : AppTheme.dividerColor,
                   ),
-                  Text(
-                    w.temperatureStr,
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          color: colorScheme.onPrimaryContainer,
-                          fontWeight: FontWeight.bold,
-                        ),
+                  boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: AppTheme.primaryRose.withAlpha(50),
+                            blurRadius: 6,
+                            offset: const Offset(0, 3),
+                          )
+                        ]
+                      : [],
+                ),
+                child: Text(
+                  '${item['emoji']} $label',
+                  style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                    color: isSelected ? Colors.white : AppTheme.textMedium,
                   ),
-                  Text(
-                    w.conditionTr,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onPrimaryContainer,
-                        ),
-                  ),
-                ],
+                ),
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _WeatherStat(
-                    icon: Icons.water_drop_outlined,
-                    value: '%${w.humidity}'),
-                const SizedBox(height: 6),
-                _WeatherStat(
-                    icon: Icons.air,
-                    value: '${w.windSpeed.toStringAsFixed(1)} m/s'),
-              ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ─── Suggest Button ─────────────────────────────────────────────────────────
+class _SuggestButton extends StatelessWidget {
+  final bool isSuggesting;
+  final VoidCallback onPressed;
+  const _SuggestButton({required this.isSuggesting, required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: isSuggesting ? null : onPressed,
+      child: Container(
+        height: 54,
+        decoration: BoxDecoration(
+          gradient: isSuggesting
+              ? null
+              : const LinearGradient(
+                  colors: [AppTheme.darkRose, AppTheme.primaryRose],
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                ),
+          color: isSuggesting ? AppTheme.lightRose : null,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: isSuggesting
+              ? []
+              : [
+                  BoxShadow(
+                    color: AppTheme.primaryRose.withAlpha(70),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6),
+                  ),
+                ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (isSuggesting)
+              const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: AppTheme.primaryRose))
+            else
+              const Icon(Icons.auto_awesome_rounded,
+                  color: Colors.white, size: 18),
+            const SizedBox(width: 10),
+            Text(
+              isSuggesting ? 'Kombin Hazırlanıyor…' : 'Kombin Öner',
+              style: GoogleFonts.poppins(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: isSuggesting ? AppTheme.primaryRose : Colors.white,
+              ),
             ),
           ],
         ),
@@ -399,127 +542,176 @@ class _WeatherCard extends StatelessWidget {
   }
 }
 
-class _WeatherStat extends StatelessWidget {
-  final IconData icon;
-  final String value;
-  const _WeatherStat({required this.icon, required this.value});
+// ─── Chat Button ─────────────────────────────────────────────────────────────
+class _ChatButton extends StatelessWidget {
+  final List<ClothingItem> clothingItems;
+  const _ChatButton({required this.clothingItems});
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 14, color: Theme.of(context).colorScheme.primary),
-        const SizedBox(width: 4),
-        Text(value,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
-                )),
-      ],
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (_) => AIChatScreen(clothingItems: clothingItems)),
+      ),
+      child: Container(
+        height: 50,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppTheme.dividerColor),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.chat_bubble_outline_rounded,
+                color: AppTheme.primaryRose, size: 18),
+            const SizedBox(width: 10),
+            Text(
+              'Stil Asistanıyla Konuş',
+              style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: AppTheme.primaryRose),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
-// ---------------------------------------------------------------------------
-// Kombin Öneri Sonuç Kartı
-// ---------------------------------------------------------------------------
+// ─── Error Card ──────────────────────────────────────────────────────────────
+class _ErrorCard extends StatelessWidget {
+  final String message;
+  const _ErrorCard({required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFCE4EC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFFFCDD2)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline_rounded,
+              color: AppTheme.errorRed, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(message,
+                style: GoogleFonts.poppins(
+                    fontSize: 12, color: AppTheme.errorRed)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Suggestion Card ─────────────────────────────────────────────────────────
 class _SuggestionCard extends StatelessWidget {
   final OutfitSuggestion suggestion;
   const _SuggestionCard({required this.suggestion});
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(
-          color: Theme.of(context).colorScheme.outlineVariant,
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppTheme.dividerColor),
+        boxShadow: [
+          BoxShadow(
+            color: AppTheme.primaryRose.withAlpha(15),
+            blurRadius: 16,
+            offset: const Offset(0, 6),
+          ),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(18),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Stil adı
-            Row(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: const BoxDecoration(
+                  gradient: AppTheme.primaryGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.auto_awesome_rounded,
+                    color: Colors.white, size: 16),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  suggestion.styleName,
+                  style: GoogleFonts.playfairDisplay(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.textDark),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          Text(
+            suggestion.outfitDescription,
+            style: GoogleFonts.poppins(
+                fontSize: 13, color: AppTheme.textMedium, height: 1.6),
+          ),
+
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 14),
+            child: Divider(color: AppTheme.dividerColor),
+          ),
+
+          _TipRow(icon: Icons.brush_outlined, label: 'Makyaj',
+              text: suggestion.makeupTips),
+          const SizedBox(height: 10),
+          _TipRow(icon: Icons.spa_outlined, label: 'Cilt Bakımı',
+              text: suggestion.skincareTips),
+          const SizedBox(height: 14),
+
+          // Motivation
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFFFFF0F5), Color(0xFFFCE8F3)],
+              ),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppTheme.dividerColor),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(Icons.auto_awesome,
-                    size: 20,
-                    color: Theme.of(context).colorScheme.primary),
-                const SizedBox(width: 8),
+                const Icon(Icons.format_quote_rounded,
+                    color: AppTheme.primaryRose, size: 20),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    suggestion.styleName,
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+                    suggestion.motivationMessage,
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: AppTheme.textMedium,
+                      fontStyle: FontStyle.italic,
+                      height: 1.5,
+                    ),
                   ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-
-            // Kombin açıklaması
-            Text(
-              suggestion.outfitDescription,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-
-            // Bölücü
-            const Padding(
-              padding: EdgeInsets.symmetric(vertical: 14),
-              child: Divider(),
-            ),
-
-            // Makyaj önerileri
-            _TipRow(
-              icon: Icons.brush_outlined,
-              label: 'Makyaj',
-              text: suggestion.makeupTips,
-            ),
-            const SizedBox(height: 12),
-
-            // Cilt bakımı
-            _TipRow(
-              icon: Icons.spa_outlined,
-              label: 'Cilt Bakımı',
-              text: suggestion.skincareTips,
-            ),
-            const SizedBox(height: 14),
-
-            // Motivasyon mesajı
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.secondaryContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.format_quote,
-                    color: Theme.of(context).colorScheme.secondary,
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      suggestion.motivationMessage,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSecondaryContainer,
-                            fontStyle: FontStyle.italic,
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -536,41 +728,32 @@ class _TipRow extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, size: 18, color: Colors.grey),
-        const SizedBox(width: 8),
+        Container(
+          width: 28,
+          height: 28,
+          decoration: BoxDecoration(
+            color: AppTheme.lightRose,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Icon(icon, size: 14, color: AppTheme.primaryRose),
+        ),
+        const SizedBox(width: 10),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(label,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 13)),
+                  style: GoogleFonts.poppins(
+                      fontSize: 12, fontWeight: FontWeight.w600,
+                      color: AppTheme.textDark)),
               const SizedBox(height: 2),
               Text(text,
-                  style: Theme.of(context).textTheme.bodySmall),
+                  style: GoogleFonts.poppins(
+                      fontSize: 11, color: AppTheme.textMedium, height: 1.5)),
             ],
           ),
         ),
       ],
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Yardımcı — Bölüm başlığı
-// ---------------------------------------------------------------------------
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(context)
-          .textTheme
-          .titleSmall
-          ?.copyWith(fontWeight: FontWeight.bold),
     );
   }
 }

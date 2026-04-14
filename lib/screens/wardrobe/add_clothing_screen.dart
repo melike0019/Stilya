@@ -205,57 +205,81 @@ class _AddClothingScreenState extends State<AddClothingScreen> {
             // Fotoğraf seçici
             // ---------------------------------------------------------------
             GestureDetector(
-              onTap: _showImageSourceSheet,
+              onTap: _imageFile == null ? _showImageSourceSheet : null,
               child: Container(
                 width: double.infinity,
-                height: 220,
+                height: 280,
                 decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(16),
-                  image: _imageFile != null
-                      ? DecorationImage(
-                          image: FileImage(_imageFile!),
-                          fit: BoxFit.cover,
-                        )
-                      : null,
+                  color: const Color(0xFFF5EEF2),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: const Color(0xFFEDD5E2)),
                 ),
+                clipBehavior: Clip.antiAlias,
                 child: _imageFile == null
                     ? Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(
-                            Icons.add_photo_alternate_outlined,
-                            size: 52,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurfaceVariant,
+                          Container(
+                            width: 64,
+                            height: 64,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFEDD5E2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.add_photo_alternate_outlined,
+                              size: 30,
+                              color: Color(0xFFC06080),
+                            ),
                           ),
-                          const SizedBox(height: 8),
-                          Text(
+                          const SizedBox(height: 12),
+                          const Text(
                             'Fotoğraf eklemek için dokun',
                             style: TextStyle(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .onSurfaceVariant,
+                              color: Color(0xFF9A7080),
+                              fontSize: 14,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Kamera veya galeri',
+                            style: TextStyle(
+                              color: Color(0xFFB5A0A8),
+                              fontSize: 12,
                             ),
                           ),
                         ],
                       )
-                    : Align(
-                        alignment: Alignment.topRight,
-                        child: Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: CircleAvatar(
-                            radius: 16,
-                            backgroundColor: Colors.black54,
-                            child: IconButton(
-                              padding: EdgeInsets.zero,
-                              icon: const Icon(Icons.edit,
-                                  size: 16, color: Colors.white),
-                              onPressed: _showImageSourceSheet,
+                    : Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          // Fotoğraf tam görünsün — kırpmadan
+                          Image.file(
+                            _imageFile!,
+                            fit: BoxFit.contain,
+                          ),
+                          // Düzenle butonu (sağ üst)
+                          Positioned(
+                            top: 10,
+                            right: 10,
+                            child: GestureDetector(
+                              onTap: _showImageSourceSheet,
+                              child: Container(
+                                width: 36,
+                                height: 36,
+                                decoration: const BoxDecoration(
+                                  color: Colors.black54,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.edit_rounded,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ),
               ),
             ),

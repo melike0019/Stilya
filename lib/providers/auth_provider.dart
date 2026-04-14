@@ -35,13 +35,36 @@ class AuthProvider extends ChangeNotifier {
                 .get();
 
             if (doc.exists) {
-              _user = UserModel.fromFirestore(
+              var model = UserModel.fromFirestore(
                 doc.data() as Map<String, dynamic>,
                 doc.id,
+              );
+              // Firestore'da displayName boşsa Firebase Auth'tan al
+              if (model.displayName.isEmpty) {
+                final fbName = firebaseUser.displayName ?? '';
+                if (fbName.isNotEmpty) {
+                  model = model.copyWith(displayName: fbName);
+                }
+              }
+              _user = model;
+            } else {
+              // Firestore belgesi yoksa Firebase Auth verisinden kullanıcı oluştur
+              _user = UserModel(
+                id: firebaseUser.uid,
+                email: firebaseUser.email ?? '',
+                displayName: firebaseUser.displayName ?? '',
+                createdAt: DateTime.now(),
               );
             }
             _status = AuthStatus.authenticated;
           } catch (e) {
+            // Okuma hatası olsa bile Firebase Auth'tan minimal kullanıcı oluştur
+            _user ??= UserModel(
+              id: firebaseUser.uid,
+              email: firebaseUser.email ?? '',
+              displayName: firebaseUser.displayName ?? '',
+              createdAt: DateTime.now(),
+            );
             _status = AuthStatus.authenticated;
           }
         } else {
@@ -64,7 +87,7 @@ class AuthProvider extends ChangeNotifier {
     required String password,
     required String displayName,
   }) async {
-    _setLoading();
+    _errorMessage = null;
 
     try {
       final user = await _authService.signUp(
@@ -91,7 +114,7 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String password,
   }) async {
-    _setLoading();
+    _errorMessage = null;
 
     try {
       final user = await _authService.signIn(

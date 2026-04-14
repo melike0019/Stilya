@@ -8,7 +8,8 @@ import 'providers/clothing_provider.dart';
 import 'providers/outfit_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/weather_provider.dart';
-import 'screens/auth/auth_gate.dart';
+import 'screens/splash_screen.dart';
+import 'theme/app_theme.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,26 +35,21 @@ void main() async {
           create: (_) => WeatherProvider(),
         ),
       ],
-      child: const MyApp(),
+      child: const StilyaApp(),
     ),
   );
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+class StilyaApp extends StatelessWidget {
+  const StilyaApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Stilya',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6B21A8),
-        ),
-        useMaterial3: true,
-      ),
-      home: const AuthGate(),
+      theme: AppTheme.light,
+      home: const SplashScreen(),
     );
   }
 }

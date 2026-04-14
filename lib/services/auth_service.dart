@@ -67,9 +67,24 @@ class AuthService {
 
       // Firestore'dan kullanıcı verisini al
       final doc = await _firestore.collection('users').doc(user.uid).get();
-      if (!doc.exists) return null;
 
-      return UserModel.fromFirestore(doc.data()!, doc.id);
+      if (doc.exists) {
+        var model = UserModel.fromFirestore(doc.data()!, doc.id);
+        // Firestore'da displayName boşsa Firebase Auth'tan al
+        if (model.displayName.isEmpty) {
+          final fbName = user.displayName ?? '';
+          if (fbName.isNotEmpty) model = model.copyWith(displayName: fbName);
+        }
+        return model;
+      }
+
+      // Firestore belgesi yoksa Firebase Auth verisinden oluştur
+      return UserModel(
+        id: user.uid,
+        email: user.email ?? '',
+        displayName: user.displayName ?? '',
+        createdAt: DateTime.now(),
+      );
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     }
