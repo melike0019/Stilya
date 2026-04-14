@@ -1,13 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:provider/provider.dart';
 import 'firebase_options.dart';
+
+import 'providers/auth_provider.dart';
+import 'providers/clothing_provider.dart';
+import 'providers/outfit_provider.dart';
+import 'providers/user_provider.dart';
+import 'screens/auth/auth_gate.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const MyApp());
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider<AuthProvider>(
+          create: (_) => AuthProvider(),
+        ),
+        ChangeNotifierProvider<UserProvider>(
+          create: (_) => UserProvider(),
+        ),
+        ChangeNotifierProvider<ClothingProvider>(
+          create: (_) => ClothingProvider(),
+        ),
+        ChangeNotifierProvider<OutfitProvider>(
+          create: (_) => OutfitProvider(),
+        ),
+      ],
+      child: const MyApp(),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -24,14 +49,7 @@ class MyApp extends StatelessWidget {
         ),
         useMaterial3: true,
       ),
-      home: const Scaffold(
-        body: Center(
-          child: Text(
-            'Stilya 🚀',
-            style: TextStyle(fontSize: 32),
-          ),
-        ),
-      ),
+      home: const AuthGate(),
     );
   }
 }

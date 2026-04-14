@@ -8,7 +8,7 @@ enum AuthStatus { initial, loading, authenticated, unauthenticated, error }
 class AuthProvider extends ChangeNotifier {
   final AuthService _authService = AuthService();
 
-  AuthStatus _status = AuthStatus.initial;
+  AuthStatus _status = AuthStatus.loading;
   UserModel? _user;
   String? _errorMessage;
 
@@ -25,28 +25,38 @@ class AuthProvider extends ChangeNotifier {
 
   // --- BAŞLANGIÇTA OTURUM KONTROLÜ ---
   void _init() {
-  _authService.authStateChanges.listen((firebaseUser) async {
-    if (firebaseUser != null) {
-      // Firestore'dan kullanıcıyı yükle
-      final doc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(firebaseUser.uid)
-          .get();
+    _authService.authStateChanges.listen(
+      (firebaseUser) async {
+        if (firebaseUser != null) {
+          try {
+            final doc = await FirebaseFirestore.instance
+                .collection('users')
+                .doc(firebaseUser.uid)
+                .get();
 
-      if (doc.exists) {
-        _user = UserModel.fromFirestore(
-          doc.data() as Map<String, dynamic>,
-          doc.id,
-        );
-      }
-      _status = AuthStatus.authenticated;
-    } else {
-      _status = AuthStatus.unauthenticated;
-      _user = null;
-    }
-    notifyListeners();
-  });
-}
+            if (doc.exists) {
+              _user = UserModel.fromFirestore(
+                doc.data() as Map<String, dynamic>,
+                doc.id,
+              );
+            }
+            _status = AuthStatus.authenticated;
+          } catch (e) {
+            _status = AuthStatus.authenticated;
+          }
+        } else {
+          _status = AuthStatus.unauthenticated;
+          _user = null;
+        }
+        notifyListeners();
+      },
+      onError: (e) {
+        _status = AuthStatus.unauthenticated;
+        _user = null;
+        notifyListeners();
+      },
+    );
+  }
 
   // --- KAYIT OL ---
   Future<bool> signUp({

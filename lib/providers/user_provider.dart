@@ -44,18 +44,22 @@ class UserProvider extends ChangeNotifier {
   void watchUser(String userId) {
     _userSubscription?.cancel();
     
-    _userSubscription = _userService.watchUser(userId).listen((user) {
-      if (user != null) {
-        _user = user;
-        _status = UserStatus.loaded;
+    _userSubscription = _userService.watchUser(userId).listen(
+      (user) {
+        if (user != null) {
+          _user = user;
+          _status = UserStatus.loaded;
+        } else {
+          _user = null;
+          _status = UserStatus.error;
+          _errorMessage = 'Kullanıcı bulunamadı';
+        }
         notifyListeners();
-      } else {
-        _user = null;
-        _status = UserStatus.error;
-        _errorMessage = 'Kullanıcı bulunamadı';
-        notifyListeners();
-      }
-    });
+      },
+      onError: (e) {
+        _setError(e.toString());
+      },
+    );
   }
 
   @override

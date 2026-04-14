@@ -50,11 +50,16 @@ class OutfitProvider extends ChangeNotifier {
     
     _outfitsSubscription = _outfitService
         .watchOutfits(userId)
-        .listen((outfits) {
-      _outfits = outfits;
-      _status = OutfitStatus.loaded;
-      notifyListeners();
-    });
+        .listen(
+          (outfits) {
+            _outfits = outfits;
+            _status = OutfitStatus.loaded;
+            notifyListeners();
+          },
+          onError: (e) {
+            _setError(e.toString());
+          },
+        );
   }
 
   @override

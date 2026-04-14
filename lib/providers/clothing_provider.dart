@@ -55,11 +55,16 @@ class ClothingProvider extends ChangeNotifier {
     
     _itemsSubscription = _clothingService
         .watchClothingItems(userId)
-        .listen((items) {
-      _items = items;
-      _status = ClothingStatus.loaded;
-      notifyListeners();
-    });
+        .listen(
+          (items) {
+            _items = items;
+            _status = ClothingStatus.loaded;
+            notifyListeners();
+          },
+          onError: (e) {
+            _setError(e.toString());
+          },
+        );
   }
   @override
   void dispose() {
