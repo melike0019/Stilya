@@ -84,7 +84,7 @@ class ClothingProvider extends ChangeNotifier {
   }) async {
     _setLoading();
     try {
-      final newItem = await _clothingService.addClothingItem(
+      await _clothingService.addClothingItem(
         userId: userId,
         imageFile: imageFile,
         category: category,
@@ -93,11 +93,8 @@ class ClothingProvider extends ChangeNotifier {
         brand: brand,
         notes: notes,
       );
-
-      // Lokal listeye ekle
-      _items = [newItem, ..._items];
-      _status = ClothingStatus.loaded;
-      notifyListeners();
+      // watchItems stream'i Firestore'dan değişikliği zaten alacak,
+      // burada manuel ekleme yapmıyoruz — çift gösterim önlenir.
       return true;
     } catch (e) {
       _setError(e.toString());

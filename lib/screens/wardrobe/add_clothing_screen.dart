@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
@@ -82,8 +83,33 @@ class _AddClothingScreenState extends State<AddClothingScreen> {
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: source, imageQuality: 90);
-    if (picked != null && mounted) {
-      setState(() => _imageFile = File(picked.path));
+    if (picked == null || !mounted) return;
+
+    // Kırpma ekranını aç
+    final cropped = await ImageCropper().cropImage(
+      sourcePath: picked.path,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Fotoğrafı Düzenle',
+          toolbarColor: const Color(0xFFB05070),
+          toolbarWidgetColor: Colors.white,
+          statusBarLight: false,
+          activeControlsWidgetColor: const Color(0xFFB05070),
+          backgroundColor: Colors.black,
+          initAspectRatio: CropAspectRatioPreset.original,
+          lockAspectRatio: false,
+          hideBottomControls: false,
+        ),
+        IOSUiSettings(
+          title: 'Fotoğrafı Düzenle',
+          cancelButtonTitle: 'İptal',
+          doneButtonTitle: 'Tamam',
+        ),
+      ],
+    );
+
+    if (cropped != null && mounted) {
+      setState(() => _imageFile = File(cropped.path));
     }
   }
 

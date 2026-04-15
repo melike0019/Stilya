@@ -9,6 +9,79 @@ import '../../providers/clothing_provider.dart';
 import '../../theme/app_theme.dart';
 import 'add_clothing_screen.dart';
 
+// ─── Silme onayı ─────────────────────────────────────────────────────────────
+Future<void> _confirmDelete(
+    BuildContext context, ClothingItem item) async {
+  final userId = context.read<AuthProvider>().user?.id;
+  if (userId == null) return;
+
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      title: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: const Color(0xFFFCE4EC),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.delete_outline_rounded,
+                color: Color(0xFFE53935), size: 18),
+          ),
+          const SizedBox(width: 10),
+          const Text('Kıyafeti Sil',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+        ],
+      ),
+      content: RichText(
+        text: TextSpan(
+          style: const TextStyle(fontSize: 13, color: Color(0xFF555555), height: 1.5),
+          children: [
+            const TextSpan(text: '"'),
+            TextSpan(
+              text: item.category,
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            const TextSpan(
+                text: '" gardırobundan silinecek.\nBu işlem geri alınamaz.'),
+          ],
+        ),
+      ),
+      actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      actions: [
+        OutlinedButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          style: OutlinedButton.styleFrom(
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+          child: const Text('İptal'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          style: FilledButton.styleFrom(
+            backgroundColor: const Color(0xFFE53935),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
+          child: const Text('Sil'),
+        ),
+      ],
+    ),
+  );
+
+  if (confirmed == true && context.mounted) {
+    await context.read<ClothingProvider>().deleteItem(
+          userId: userId,
+          itemId: item.id,
+          imageUrl: item.imageUrl,
+        );
+  }
+}
+
 class WardrobeScreen extends StatefulWidget {
   const WardrobeScreen({super.key});
 
@@ -170,9 +243,16 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
 }
 
 // ─── Clothing Card ───────────────────────────────────────────────────────────
-class _ClothingCard extends StatelessWidget {
+class _ClothingCard extends StatefulWidget {
   final ClothingItem item;
   const _ClothingCard({required this.item});
+
+  @override
+  State<_ClothingCard> createState() => _ClothingCardState();
+}
+
+class _ClothingCardState extends State<_ClothingCard> {
+  bool _pressing = false;
 
   static const Map<String, Color> _colorMap = {
     'Siyah': Colors.black,
@@ -193,83 +273,112 @@ class _ClothingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withAlpha(15),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(18),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            ColoredBox(
-              color: const Color(0xFFF5EEF2),
-              child: CachedNetworkImage(
-                imageUrl: item.imageUrl,
-                fit: BoxFit.contain,
-                width: double.infinity,
-                height: double.infinity,
-                placeholder: (context, url) => const Center(
-                  child: CircularProgressIndicator(
-                      strokeWidth: 2, color: AppTheme.primaryRose),
-                ),
-                errorWidget: (context, url, error) => const Center(
-                  child: Icon(Icons.broken_image_outlined,
-                      size: 40, color: AppTheme.textLight),
-                ),
+    return GestureDetector(
+      onLongPress: () => _confirmDelete(context, widget.item),
+      onLongPressStart: (_) => setState(() => _pressing = true),
+      onLongPressEnd: (_) => setState(() => _pressing = false),
+      onLongPressCancel: () => setState(() => _pressing = false),
+      child: AnimatedScale(
+        scale: _pressing ? 0.94 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withAlpha(15),
+                blurRadius: 8,
+                offset: const Offset(0, 4),
               ),
-            ),
-            // Gradient overlay
-            Positioned(
-              left: 0,
-              right: 0,
-              bottom: 0,
-              child: Container(
-                padding: const EdgeInsets.fromLTRB(10, 28, 10, 10),
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [Colors.black87, Colors.transparent],
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                ColoredBox(
+                  color: const Color(0xFFF5EEF2),
+                  child: CachedNetworkImage(
+                    imageUrl: widget.item.imageUrl,
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                    height: double.infinity,
+                    placeholder: (context, url) => const Center(
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: AppTheme.primaryRose),
+                    ),
+                    errorWidget: (context, url, error) => const Center(
+                      child: Icon(Icons.broken_image_outlined,
+                          size: 40, color: AppTheme.textLight),
+                    ),
                   ),
                 ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        item.category,
-                        style: GoogleFonts.poppins(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600),
-                        overflow: TextOverflow.ellipsis,
+                // Gradient overlay + kategori etiketi
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding: const EdgeInsets.fromLTRB(10, 28, 10, 10),
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [Colors.black87, Colors.transparent],
                       ),
                     ),
-                    ...item.colors.take(3).map((colorName) {
-                      final c = _colorMap[colorName] ?? Colors.grey;
-                      return Container(
-                        width: 9,
-                        height: 9,
-                        margin: const EdgeInsets.only(left: 4),
-                        decoration: BoxDecoration(
-                          color: c,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white60, width: 0.5),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            widget.item.category,
+                            style: GoogleFonts.poppins(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      );
-                    }),
-                  ],
+                        ...widget.item.colors.take(3).map((colorName) {
+                          final c = _colorMap[colorName] ?? Colors.grey;
+                          return Container(
+                            width: 9,
+                            height: 9,
+                            margin: const EdgeInsets.only(left: 4),
+                            decoration: BoxDecoration(
+                              color: c,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white60, width: 0.5),
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                // Uzun basma ipucu — sağ üstte küçük silme ikonu
+                Positioned(
+                  top: 8,
+                  right: 8,
+                  child: AnimatedOpacity(
+                    opacity: _pressing ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 150),
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE53935),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.delete_outline_rounded,
+                          color: Colors.white, size: 16),
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );

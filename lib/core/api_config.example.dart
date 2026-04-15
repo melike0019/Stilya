@@ -4,14 +4,15 @@
 /// api_config.dart dosyası .gitignore'a eklenmiştir — GitHub'a gönderilmez.
 ///
 /// OpenWeatherMap (ücretsiz): https://openweathermap.org/api
-/// Google Gemini (ücretsiz):  https://aistudio.google.com/app/apikey
+/// Groq (ücretsiz, kart gerekmez): https://console.groq.com
 class ApiConfig {
+  // Hava durumu — OpenWeatherMap
   static const String weatherApiKey = 'YOUR_OPENWEATHERMAP_API_KEY';
   static const String weatherBaseUrl =
       'https://api.openweathermap.org/data/2.5';
 
-  static const String geminiApiKey = 'YOUR_GEMINI_API_KEY';
-  static const String geminiModel = 'gemini-1.5-flash';
-  static const String geminiBaseUrl =
-      'https://generativelanguage.googleapis.com/v1beta/models';
+  // Yapay zeka — Groq (ücretsiz, OpenAI uyumlu)
+  static const String groqApiKey = 'YOUR_GROQ_API_KEY';
+  static const String groqModel   = 'llama-3.3-70b-versatile';
+  static const String groqBaseUrl = 'https://api.groq.com/openai/v1';
 }

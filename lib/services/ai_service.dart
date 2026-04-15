@@ -6,6 +6,20 @@ import '../models/clothing_item_model.dart';
 import '../models/weather_model.dart';
 
 // ---------------------------------------------------------------------------
+// Markdown temizleyici — AI bazen ** * # - gibi işaretler ekler
+// ---------------------------------------------------------------------------
+String _clean(String raw) {
+  return raw
+      .replaceAllMapped(RegExp(r'\*\*(.+?)\*\*'), (m) => m[1]!) // **bold**
+      .replaceAllMapped(RegExp(r'\*(.+?)\*'),     (m) => m[1]!) // *italic*
+      .replaceAll(RegExp(r'#+\s*'),               '')            // # Başlık
+      .replaceAll(RegExp(r'^\s*[-•]\s+', multiLine: true), '')  // - madde
+      .replaceAll(RegExp(r'^\s*\d+\.\s+', multiLine: true), '') // 1. madde
+      .replaceAll(RegExp(r'\n{3,}'),              '\n\n')        // fazla boşluk
+      .trim();
+}
+
+// ---------------------------------------------------------------------------
 // Kombin önerisi veri modeli
 // ---------------------------------------------------------------------------
 class OutfitSuggestion {
@@ -26,13 +40,21 @@ class OutfitSuggestion {
   });
 
   factory OutfitSuggestion.fromJson(Map<String, dynamic> json) {
+    // ID: önekini temizle (AI bazen "ID:xxxx" formatında döner)
+    final rawIds = List<String>.from(json['itemIds'] as List? ?? []);
+    final cleanIds = rawIds
+        .map((id) => id.startsWith('ID:') ? id.substring(3) : id)
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toList();
+
     return OutfitSuggestion(
-      styleName: json['styleName'] as String? ?? 'Günlük Şıklık',
-      itemIds: List<String>.from(json['itemIds'] as List? ?? []),
-      outfitDescription: json['outfitDescription'] as String? ?? '',
-      makeupTips: json['makeupTips'] as String? ?? '',
-      skincareTips: json['skincareTips'] as String? ?? '',
-      motivationMessage: json['motivationMessage'] as String? ?? '',
+      styleName:         _clean(json['styleName']         as String? ?? 'Günlük Şıklık'),
+      itemIds:           cleanIds,
+      outfitDescription: _clean(json['outfitDescription'] as String? ?? ''),
+      makeupTips:        _clean(json['makeupTips']        as String? ?? ''),
+      skincareTips:      _clean(json['skincareTips']      as String? ?? ''),
+      motivationMessage: _clean(json['motivationMessage'] as String? ?? ''),
     );
   }
 }
@@ -41,24 +63,22 @@ class OutfitSuggestion {
 // Chat mesajı
 // ---------------------------------------------------------------------------
 class ChatMessage {
-  final String role; // 'user' veya 'model'
+  final String role;    // 'user' veya 'model'
   final String content;
-
   const ChatMessage({required this.role, required this.content});
 }
 
 // ---------------------------------------------------------------------------
-// AI Servisi — Gemini 1.5 Flash
+// AI Servisi — Groq (OpenAI uyumlu, ücretsiz)
 // ---------------------------------------------------------------------------
 class AIService {
-  static final String _endpoint =
-      '${ApiConfig.geminiBaseUrl}/${ApiConfig.geminiModel}:generateContent'
-      '?key=${ApiConfig.geminiApiKey}';
+  static const String _chatEndpoint =
+      '${ApiConfig.groqBaseUrl}/chat/completions';
 
   // -------------------------------------------------------------------------
-  // KOMBİN ÖNERİSİ
+  // KOMBİN ÖNERİSİ — min 3, mümkünse daha fazla seçenek
   // -------------------------------------------------------------------------
-  Future<OutfitSuggestion> getOutfitSuggestion({
+  Future<List<OutfitSuggestion>> getOutfitSuggestion({
     required List<ClothingItem> items,
     required WeatherModel weather,
     required String mood,
@@ -66,50 +86,92 @@ class AIService {
   }) async {
     _checkApiKey();
 
+    // Gardırop listesini hazırla — geçerli ID'leri de ayrıca belirt
+    final validIds = items.map((i) => i.id).toSet();
+
     final clothingList = items.isEmpty
         ? 'Gardırop boş.'
-        : items
-            .map((i) =>
-                '• ID:${i.id} | ${i.category} | Renkler: ${i.colors.join(", ")} '
-                '| Mevsimler: ${i.seasons.join(", ")}'
-                '${i.brand != null ? " | Marka: ${i.brand}" : ""}')
-            .join('\n');
+        : items.map((i) =>
+            '• ID:${i.id} | ${i.category} | '
+            'Renkler: ${i.colors.join(", ")} | '
+            'Mevsimler: ${i.seasons.join(", ")}'
+            '${i.brand != null ? " | Marka: ${i.brand}" : ""}',
+          ).join('\n');
 
-    final prompt = '''
-Sen STILYA uygulamasının yapay zeka stil asistanısın.
-Görevin: Kullanıcının gardırobundaki mevcut kıyafetleri analiz ederek bugüne özel kombin önermek.
+    final validIdList = items.map((i) => i.id).join(', ');
 
-== KULLANICI GARDIROBU ==
+    const systemPrompt =
+        'Sen STILYA uygulamasının yapay zeka stil asistanısın. '
+        'Görevin kullanıcının gardırobundaki kıyafetleri analiz ederek '
+        'hava durumuna, ruh haline ve etkinliğe uygun kombin seçenekleri önermek. '
+        'Yanıtını HER ZAMAN geçerli bir JSON nesnesi olarak ver, '
+        'başka hiçbir metin veya markdown işareti ekleme.';
+
+    final userPrompt = '''
+KULLANICI GARDIROBU (YALNIZCA BUNLARI KULLAN):
 $clothingList
 
-== BUGÜNÜN KOŞULLARI ==
+GEÇERLİ ID LİSTESİ: $validIdList
+
+BUGÜNÜN KOŞULLARI:
 Hava: ${weather.conditionForPrompt}
 Ruh hali: $mood
 Etkinlik: $occasion
 
-== KURALLAR ==
-1. Sadece gardırop listesindeki kıyafetleri kullan. ID'leri aynen kopyala.
-2. Hava koşullarına ve mevsime uygun seçimler yap.
-3. Ruh hali ve etkinliğe uygun bir stil oluştur.
-4. Yanıtını YALNIZCA aşağıdaki JSON formatında ver. JSON dışında hiçbir metin ekleme.
+KESİN KURALLAR (İHLAL ETMEDİĞİNDEN EMİN OL):
+1. itemIds alanına YALNIZCA yukarıdaki GEÇERLİ ID LİSTESİ'ndeki ID'leri yaz. Başka hiçbir ID kabul edilmez.
+2. Gardırop listesinde olmayan kıyafet, ayakkabı, aksesuar veya çanta ÖNERİLEMEZ.
+3. Hava koşullarına ve mevsime uygun seçimler yap.
+4. Tüm metinleri düz Türkçe yaz — **, *, #, - gibi markdown işaretleri kullanma.
+5. Gardıruptaki parçalardan anlamlı şekilde farklılaşan EN AZ 3 kombin öner. Daha fazla anlamlı kombinasyon mümkünse ekleyebilirsin.
+6. Her kombinde mümkünse üst giyim, alt giyim, aksesuar ve ayakkabı gibi farklı kategorilerden parçalar seç.
+7. Yalnızca aşağıdaki JSON formatında yanıt ver:
 
 {
-  "styleName": "stilin kısa ve çarpıcı adı (örn: Profesyonel Zarafet)",
-  "itemIds": ["gardıroptan seçilen ID'ler"],
-  "outfitDescription": "kombini ve tercih nedenlerini açıklayan 2-3 Türkçe cümle",
-  "makeupTips": "ruh haline ve etkinliğe uygun somut makyaj önerileri (ürün tonları, teknikler)",
-  "skincareTips": "bugünün hava koşullarına göre cilt bakım adımları",
-  "motivationMessage": "kullanıcıyı güne hazırlayan kişisel ve ilham verici 1-2 cümle"
+  "outfits": [
+    {
+      "styleName": "stilin kısa adı",
+      "itemIds": ["sadece geçerli ID'ler"],
+      "outfitDescription": "kombini açıklayan 2-3 düz Türkçe cümle",
+      "makeupTips": "somut makyaj önerileri, düz metin",
+      "skincareTips": "hava koşullarına göre cilt bakım adımları, düz metin",
+      "motivationMessage": "1-2 ilham verici cümle, düz metin"
+    }
+  ]
 }''';
 
-    final raw = await _callGemini([
-      {'role': 'user', 'parts': prompt},
-    ]);
+    final raw = await _callGroq(
+      messages: [
+        {'role': 'system', 'content': systemPrompt},
+        {'role': 'user',   'content': userPrompt},
+      ],
+      maxTokens: 2048,
+    );
 
     final jsonStr = _extractJson(raw);
     try {
       final data = jsonDecode(jsonStr) as Map<String, dynamic>;
-      return OutfitSuggestion.fromJson(data);
+      final list = data['outfits'] as List? ?? [];
+      if (list.isEmpty) throw 'Boş liste';
+
+      // Parse et ve geçersiz ID'leri filtrele
+      final outfits = list
+          .map((o) => OutfitSuggestion.fromJson(o as Map<String, dynamic>))
+          .map((o) => OutfitSuggestion(
+                styleName:         o.styleName,
+                // Yalnızca gardıropta gerçekten var olan ID'leri tut
+                itemIds:           o.itemIds.where(validIds.contains).toList(),
+                outfitDescription: o.outfitDescription,
+                makeupTips:        o.makeupTips,
+                skincareTips:      o.skincareTips,
+                motivationMessage: o.motivationMessage,
+              ))
+          // En az 1 eşleşen parçası olmayan kombinleri at
+          .where((o) => o.itemIds.isNotEmpty)
+          .toList();
+
+      if (outfits.isEmpty) throw 'Geçerli kombin bulunamadı';
+      return outfits;
     } catch (_) {
       throw 'AI yanıtı işlenemedi. Lütfen tekrar dene.';
     }
@@ -130,91 +192,75 @@ Etkinlik: $occasion
             .map((i) => '${i.category} (${i.colors.join(", ")})')
             .join(', ');
 
-    // İlk kullanıcı mesajına sistem bağlamını ekle
-    final systemPart =
+    final systemPrompt =
         'Sen STILYA uygulamasının kişisel stil asistanısın. '
-        'Kullanıcıyla samimi, destekleyici ve ilham verici bir üslupla Türkçe konuş. '
-        'Moda, stil kombinleri ve güzellik konularında uzmansın. '
-        'Kullanıcının mevcut gardırobu: $wardrobeSummary\n\n';
+        'Kullanıcıyla samimi, destekleyici ve ilham verici bir üslupla '
+        'Türkçe konuş. Moda, stil kombinleri ve güzellik konularında '
+        'uzmansın. Kullanıcının gardırobu: $wardrobeSummary';
 
-    // Mesaj geçmişini Gemini multi-turn formatına dönüştür
-    final contents = <Map<String, dynamic>>[];
+    final messages = <Map<String, String>>[
+      {'role': 'system', 'content': systemPrompt},
+      // 'model' rolü Groq'ta geçersiz — 'assistant' olarak gönder
+      ...history.map((m) => {
+            'role':    m.role == 'model' ? 'assistant' : m.role,
+            'content': m.content,
+          }),
+    ];
 
-    for (var i = 0; i < history.length; i++) {
-      final msg = history[i];
-      final text = (i == 0 && msg.role == 'user')
-          ? '$systemPart${msg.content}'
-          : msg.content;
-
-      contents.add({
-        'role': msg.role,
-        'parts': [{'text': text}],
-      });
-    }
-
-    return await _callGemini(contents);
+    return _callGroq(messages: messages);
   }
 
   // -------------------------------------------------------------------------
-  // Gemini API çağrısı
+  // Groq API çağrısı (OpenAI uyumlu)
   // -------------------------------------------------------------------------
-  Future<String> _callGemini(List<Map<String, dynamic>> contents) async {
-    // Kısa prompt'lar için parts'ı string olarak da destekle
-    final formattedContents = contents.map((c) {
-      final parts = c['parts'];
-      if (parts is String) {
-        return {
-          'role': c['role'],
-          'parts': [{'text': parts}],
-        };
-      }
-      return c;
-    }).toList();
-
-    final body = jsonEncode({
-      'contents': formattedContents,
-      'generationConfig': {
-        'temperature': 0.8,
-        'maxOutputTokens': 1024,
-        'topP': 0.9,
-      },
-    });
-
+  Future<String> _callGroq({
+    required List<Map<String, String>> messages,
+    int retryCount = 0,
+    int maxTokens = 1024,
+  }) async {
     final response = await http
         .post(
-          Uri.parse(_endpoint),
-          headers: {'Content-Type': 'application/json'},
-          body: body,
+          Uri.parse(_chatEndpoint),
+          headers: {
+            'Content-Type':  'application/json',
+            'Authorization': 'Bearer ${ApiConfig.groqApiKey}',
+          },
+          body: jsonEncode({
+            'model':       ApiConfig.groqModel,
+            'messages':    messages,
+            'temperature': 0.7,
+            'max_tokens':  maxTokens,
+          }),
         )
-        .timeout(const Duration(seconds: 30));
+        .timeout(const Duration(seconds: 45));
 
     switch (response.statusCode) {
       case 200:
         final data = jsonDecode(response.body) as Map<String, dynamic>;
-        final candidates = data['candidates'] as List?;
-        if (candidates == null || candidates.isEmpty) {
-          throw 'AI yanıt üretemedi. Tekrar dene.';
-        }
-        return candidates[0]['content']['parts'][0]['text'] as String;
+        return data['choices'][0]['message']['content'] as String;
       case 400:
-        throw 'Geçersiz Gemini isteği. API anahtarını kontrol et.';
-      case 403:
-        throw 'Gemini API erişim reddedildi. Anahtarı kontrol et.';
+        throw 'İstek hatası (400): ${response.body}';
+      case 401:
+        throw 'Groq API anahtarı geçersiz. api_config.dart dosyasını kontrol et.';
       case 429:
-        throw 'Gemini istek limiti aşıldı. Biraz bekle.';
+        if (retryCount < 1) {
+          await Future.delayed(const Duration(seconds: 5));
+          return _callGroq(messages: messages, retryCount: retryCount + 1, maxTokens: maxTokens);
+        }
+        throw 'İstek limiti aşıldı. Birkaç saniye bekleyip tekrar dene.';
       default:
-        throw 'AI servisi hatası (${response.statusCode}).';
+        throw 'AI servisi hatası (${response.statusCode}): ${response.body}';
     }
   }
 
-  /// Gemini bazen JSON'u ```json … ``` bloğuna sarar — temizle.
+  /// Groq bazen JSON'u ```json … ``` bloğuna sarar — temizle.
   String _extractJson(String text) {
     final mdBlock = RegExp(r'```(?:json)?\s*([\s\S]*?)\s*```');
     final match = mdBlock.firstMatch(text);
     if (match != null) return match.group(1)!.trim();
 
     final start = text.indexOf('{');
-    final end = text.lastIndexOf('}');
+    final end   = text.lastIndexOf('}');
     if (start != -1 && end != -1 && end > start) {
       return text.substring(start, end + 1);
     }
@@ -222,9 +268,9 @@ Etkinlik: $occasion
   }
 
   void _checkApiKey() {
-    if (ApiConfig.geminiApiKey == 'YOUR_GEMINI_API_KEY') {
-      throw 'Gemini API anahtarı girilmemiş.\n'
-          'lib/core/api_config.dart dosyasında geminiApiKey alanını doldur.';
+    if (ApiConfig.groqApiKey == 'YOUR_GROQ_API_KEY') {
+      throw 'Groq API anahtarı girilmemiş.\n'
+          'lib/core/api_config.dart dosyasında groqApiKey alanını doldur.';
     }
   }
 }

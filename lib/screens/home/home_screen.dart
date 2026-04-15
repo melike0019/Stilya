@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -53,7 +54,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String _selectedMood     = 'Enerjik';
   String _selectedOccasion = 'Günlük';
 
-  OutfitSuggestion? _suggestion;
+  List<OutfitSuggestion>? _suggestions;
   bool _isSuggesting    = false;
   String? _suggestionError;
 
@@ -83,19 +84,19 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     setState(() {
-      _isSuggesting = true;
-      _suggestion   = null;
+      _isSuggesting    = true;
+      _suggestions     = null;
       _suggestionError = null;
     });
 
     try {
-      final result = await AIService().getOutfitSuggestion(
+      final results = await AIService().getOutfitSuggestion(
         items: clothing.items,
         weather: weatherProv.weather!,
         mood: _selectedMood,
         occasion: _selectedOccasion,
       );
-      if (mounted) setState(() => _suggestion = result);
+      if (mounted) setState(() => _suggestions = results);
     } catch (e) {
       if (mounted) setState(() => _suggestionError = e.toString());
     } finally {
@@ -245,10 +246,33 @@ class _HomeScreenState extends State<HomeScreen> {
                   _ErrorCard(message: _suggestionError!),
                 ],
 
-                // Suggestion result
-                if (_suggestion != null) ...[
-                  const SizedBox(height: 12),
-                  _SuggestionCard(suggestion: _suggestion!),
+                // Kombin seçenekleri
+                if (_suggestions != null && _suggestions!.isNotEmpty) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Icon(Icons.style_outlined,
+                          size: 16, color: AppTheme.primaryRose),
+                      const SizedBox(width: 6),
+                      Text(
+                        '${_suggestions!.length} Kombin Seçeneği',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.textDark,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  ...List.generate(_suggestions!.length, (i) => Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: _SuggestionCard(
+                      suggestion: _suggestions![i],
+                      allItems: clothing.items,
+                      outfitNumber: i + 1,
+                    ),
+                  )),
                 ],
               ]),
             ),
@@ -615,10 +639,27 @@ class _ErrorCard extends StatelessWidget {
 // ─── Suggestion Card ─────────────────────────────────────────────────────────
 class _SuggestionCard extends StatelessWidget {
   final OutfitSuggestion suggestion;
-  const _SuggestionCard({required this.suggestion});
+  final List<ClothingItem> allItems;
+  final int outfitNumber;
+
+  const _SuggestionCard({
+    required this.suggestion,
+    required this.allItems,
+    required this.outfitNumber,
+  });
+
+  /// AI bazen "ID:xxxx" formatında döner, bazen sadece "xxxx" — ikisini de yakala.
+  List<ClothingItem> get _matchedItems {
+    final cleanIds = suggestion.itemIds
+        .map((id) => id.startsWith('ID:') ? id.substring(3) : id)
+        .toSet();
+    return allItems.where((item) => cleanIds.contains(item.id)).toList();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final matched = _matchedItems;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -632,80 +673,132 @@ class _SuggestionCard extends StatelessWidget {
           ),
         ],
       ),
-      padding: const EdgeInsets.all(18),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: const BoxDecoration(
-                  gradient: AppTheme.primaryGradient,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(Icons.auto_awesome_rounded,
-                    color: Colors.white, size: 16),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  suggestion.styleName,
-                  style: GoogleFonts.playfairDisplay(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                      color: AppTheme.textDark),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
 
-          Text(
-            suggestion.outfitDescription,
-            style: GoogleFonts.poppins(
-                fontSize: 13, color: AppTheme.textMedium, height: 1.6),
-          ),
-
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 14),
-            child: Divider(color: AppTheme.dividerColor),
-          ),
-
-          _TipRow(icon: Icons.brush_outlined, label: 'Makyaj',
-              text: suggestion.makeupTips),
-          const SizedBox(height: 10),
-          _TipRow(icon: Icons.spa_outlined, label: 'Cilt Bakımı',
-              text: suggestion.skincareTips),
-          const SizedBox(height: 14),
-
-          // Motivation
+          // ── Kombin Numarası + Stil Adı başlık bandı ──────────────
           Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFFFF0F5), Color(0xFFFCE8F3)],
-              ),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppTheme.dividerColor),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              gradient: AppTheme.primaryGradient,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.format_quote_rounded,
-                    color: AppTheme.primaryRose, size: 20),
+                Container(
+                  width: 28,
+                  height: 28,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(50),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      '$outfitNumber',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    suggestion.motivationMessage,
-                    style: GoogleFonts.poppins(
-                      fontSize: 12,
-                      color: AppTheme.textMedium,
-                      fontStyle: FontStyle.italic,
-                      height: 1.5,
+                    suggestion.styleName,
+                    style: GoogleFonts.playfairDisplay(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: Colors.white,
                     ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const Icon(Icons.auto_awesome_rounded,
+                    color: Colors.white70, size: 16),
+              ],
+            ),
+          ),
+
+          // ── Kıyafet Fotoğrafları (Mosaic Grid) ───────────────────
+          if (matched.isNotEmpty)
+            _OutfitPhotosMosaic(items: matched)
+          else
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 20),
+              color: const Color(0xFFFFF0F5),
+              child: Column(
+                children: [
+                  const Icon(Icons.checkroom_outlined,
+                      color: AppTheme.primaryRose, size: 28),
+                  const SizedBox(height: 6),
+                  Text(
+                    'Gardıroba kıyafet ekledikçe\nburada fotoğraflar görünecek',
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.poppins(
+                        fontSize: 12, color: AppTheme.textMedium),
+                  ),
+                ],
+              ),
+            ),
+
+          // ── Metin İçerik ─────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Açıklama
+                Text(
+                  suggestion.outfitDescription,
+                  style: GoogleFonts.poppins(
+                      fontSize: 13, color: AppTheme.textMedium, height: 1.6),
+                ),
+
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(color: AppTheme.dividerColor),
+                ),
+
+                // Makyaj & cilt bakımı
+                _TipRow(icon: Icons.brush_outlined, label: 'Makyaj',
+                    text: suggestion.makeupTips),
+                const SizedBox(height: 10),
+                _TipRow(icon: Icons.spa_outlined, label: 'Cilt Bakımı',
+                    text: suggestion.skincareTips),
+                const SizedBox(height: 12),
+
+                // Motivasyon
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFFF0F5), Color(0xFFFCE8F3)],
+                    ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppTheme.dividerColor),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.format_quote_rounded,
+                          color: AppTheme.primaryRose, size: 18),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          suggestion.motivationMessage,
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: AppTheme.textMedium,
+                            fontStyle: FontStyle.italic,
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
@@ -713,6 +806,131 @@ class _SuggestionCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─── Kıyafet Fotoğraf Şeridi ─────────────────────────────────────────────────
+// ≤4 parça → eşit genişlikte sütunlar, ekranı doldurur
+//  5+ parça → yatay kaydırmalı sabit genişlik kartlar
+// BoxFit.contain → fotoğraf hiç kırpılmadan tam görünür
+class _OutfitPhotosMosaic extends StatelessWidget {
+  final List<ClothingItem> items;
+  const _OutfitPhotosMosaic({required this.items});
+
+  // Fotoğraf alanı yüksekliği
+  static const double _photoH = 160;
+  // Kategori etiket alanı yüksekliği
+  static const double _labelH = 24;
+  // 5+ parça için sabit hücre genişliği
+  static const double _scrollCellW = 100;
+
+  @override
+  Widget build(BuildContext context) {
+    final totalH = _photoH + _labelH;
+
+    if (items.length <= 4) {
+      // Tüm parçalar yan yana, ekranı eşit böler
+      return SizedBox(
+        height: totalH,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: List.generate(items.length, (i) {
+            final last = i == items.length - 1;
+            return Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  border: last
+                      ? null
+                      : const Border(
+                          right: BorderSide(
+                              color: Color(0xFFEDD5E2), width: 1)),
+                ),
+                child: _cell(items[i]),
+              ),
+            );
+          }),
+        ),
+      );
+    }
+
+    // 5+ parça: kaydırılabilir
+    return SizedBox(
+      height: totalH,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        itemCount: items.length,
+        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        itemBuilder: (_, i) => SizedBox(
+          width: _scrollCellW,
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFEDD5E2)),
+              color: Colors.white,
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: _cell(items[i]),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _cell(ClothingItem item) {
+    return Column(
+      children: [
+        // Fotoğraf alanı — açık pembe zemin, contain fit
+        SizedBox(
+          height: _photoH,
+          child: ColoredBox(
+            color: const Color(0xFFFAF4F7),
+            child: CachedNetworkImage(
+              imageUrl: item.imageUrl,
+              fit: BoxFit.contain,
+              width: double.infinity,
+              height: _photoH,
+              placeholder: (_, _) => const Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 1.5, color: AppTheme.primaryRose),
+                ),
+              ),
+              errorWidget: (_, _, _) => const Center(
+                child: Icon(Icons.checkroom_outlined,
+                    color: AppTheme.textLight, size: 24),
+              ),
+            ),
+          ),
+        ),
+        // Kategori etiketi — beyaz zemin, fotoğrafın altında
+        Container(
+          height: _labelH,
+          width: double.infinity,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            border: Border(
+              top: BorderSide(color: Color(0xFFEDD5E2), width: 0.5),
+            ),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Text(
+            item.category,
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: GoogleFonts.poppins(
+              fontSize: 9,
+              color: AppTheme.textMedium,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
