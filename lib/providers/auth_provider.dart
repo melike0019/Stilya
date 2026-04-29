@@ -165,6 +165,22 @@ class AuthProvider extends ChangeNotifier {
   }
 }
 
+  // --- KULLANICI VERİSİNİ YENİLE (fotoğraf vb. güncelleme sonrası) ---
+  Future<void> refreshUser() async {
+    if (_user == null) return;
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(_user!.id)
+          .get();
+      if (doc.exists) {
+        _user = UserModel.fromFirestore(
+            doc.data() as Map<String, dynamic>, doc.id);
+        notifyListeners();
+      }
+    } catch (_) {}
+  }
+
   // --- YARDIMCI METODLAR ---
   void _setLoading() {
     _status = AuthStatus.loading;

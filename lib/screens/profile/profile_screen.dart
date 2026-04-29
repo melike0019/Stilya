@@ -1,15 +1,67 @@
+import 'dart:io';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/clothing_provider.dart';
 import '../../providers/outfit_provider.dart';
+import '../../providers/user_provider.dart';
+import '../../services/storage_service.dart';
 import '../../theme/app_theme.dart';
 import '../history/history_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool _uploadingPhoto = false;
+
+  Future<void> _pickAndUploadPhoto() async {
+    final picker = ImagePicker();
+    final source = await showModalBottomSheet<ImageSource>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _PhotoSourceSheet(),
+    );
+    if (source == null) return;
+
+    final picked = await picker.pickImage(source: source, imageQuality: 85);
+    if (picked == null || !mounted) return;
+
+    setState(() => _uploadingPhoto = true);
+    try {
+      final userId = context.read<AuthProvider>().user?.id;
+      if (userId == null) return;
+
+      final url = await StorageService().uploadProfileImage(
+        userId: userId,
+        imageFile: File(picked.path),
+      );
+      if (!mounted) return;
+      await context.read<UserProvider>().updateProfile(
+            userId: userId,
+            photoURL: url,
+          );
+      if (!mounted) return;
+      await context.read<AuthProvider>().refreshUser();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Fotoğraf yüklenemedi: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingPhoto = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -19,6 +71,7 @@ class ProfileScreen extends StatelessWidget {
     final name     = auth.user?.displayName ?? auth.user?.email ?? 'Kullanıcı';
     final email    = auth.user?.email ?? '';
     final initial  = name.isNotEmpty ? name[0].toUpperCase() : '?';
+    final photoURL = auth.user?.photoURL;
 
     return Scaffold(
       backgroundColor: AppTheme.bgStart,
@@ -53,24 +106,81 @@ class ProfileScreen extends StatelessWidget {
                     children: [
                       const SizedBox(height: 40),
                       // Avatar
-                      Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white.withAlpha(30),
-                          border: Border.all(
-                              color: Colors.white.withAlpha(150), width: 2),
-                        ),
-                        child: Center(
-                          child: Text(
-                            initial,
-                            style: GoogleFonts.playfairDisplay(
-                              fontSize: 36,
-                              fontWeight: FontWeight.w700,
-                              color: Colors.white,
+                      GestureDetector(
+                        onTap: _uploadingPhoto ? null : _pickAndUploadPhoto,
+                        child: Stack(
+                          children: [
+                            Container(
+                              width: 84,
+                              height: 84,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white.withAlpha(30),
+                                border: Border.all(
+                                    color: Colors.white.withAlpha(150),
+                                    width: 2),
+                              ),
+                              clipBehavior: Clip.antiAlias,
+                              child: _uploadingPhoto
+                                  ? const Center(
+                                      child: CircularProgressIndicator(
+                                          color: Colors.white,
+                                          strokeWidth: 2))
+                                  : photoURL != null
+                                      ? CachedNetworkImage(
+                                          imageUrl: photoURL,
+                                          fit: BoxFit.cover,
+                                          width: 84,
+                                          height: 84,
+                                          placeholder: (_, _) => Center(
+                                            child: Text(initial,
+                                                style:
+                                                    GoogleFonts.playfairDisplay(
+                                                  fontSize: 36,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                )),
+                                          ),
+                                          errorWidget: (_, _, _) => Center(
+                                            child: Text(initial,
+                                                style:
+                                                    GoogleFonts.playfairDisplay(
+                                                  fontSize: 36,
+                                                  fontWeight: FontWeight.w700,
+                                                  color: Colors.white,
+                                                )),
+                                          ),
+                                        )
+                                      : Center(
+                                          child: Text(initial,
+                                              style:
+                                                  GoogleFonts.playfairDisplay(
+                                                fontSize: 36,
+                                                fontWeight: FontWeight.w700,
+                                                color: Colors.white,
+                                              )),
+                                        ),
                             ),
-                          ),
+                            // Kamera ikonu rozeti
+                            if (!_uploadingPhoto)
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  width: 26,
+                                  height: 26,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.camera_alt_rounded,
+                                    size: 14,
+                                    color: AppTheme.primaryRose,
+                                  ),
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                       const SizedBox(height: 10),
@@ -319,6 +429,94 @@ class _SettingTile extends StatelessWidget {
             ),
             const Icon(Icons.chevron_right_rounded,
                 color: AppTheme.textLight, size: 18),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Fotoğraf Kaynak Seçici ───────────────────────────────────────────────────
+class _PhotoSourceSheet extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: AppTheme.dividerColor,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text('Profil Fotoğrafı',
+              style: GoogleFonts.playfairDisplay(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: AppTheme.textDark)),
+          const SizedBox(height: 16),
+          _SourceTile(
+            icon: Icons.camera_alt_rounded,
+            label: 'Kamera',
+            onTap: () => Navigator.pop(context, ImageSource.camera),
+          ),
+          const SizedBox(height: 8),
+          _SourceTile(
+            icon: Icons.photo_library_rounded,
+            label: 'Galeri',
+            onTap: () => Navigator.pop(context, ImageSource.gallery),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SourceTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _SourceTile(
+      {required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppTheme.bgStart,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppTheme.dividerColor),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppTheme.lightRose,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, size: 18, color: AppTheme.primaryRose),
+            ),
+            const SizedBox(width: 12),
+            Text(label,
+                style: GoogleFonts.poppins(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    color: AppTheme.textDark)),
           ],
         ),
       ),
