@@ -94,7 +94,7 @@ class OutfitProvider extends ChangeNotifier {
   }) async {
     _setLoading();
     try {
-      final newOutfit = await _outfitService.addOutfit(
+      await _outfitService.addOutfit(
         userId: userId,
         name: name,
         itemIds: itemIds,
@@ -107,8 +107,6 @@ class OutfitProvider extends ChangeNotifier {
         source: source,
       );
 
-      // Lokal listeye başa ekle
-      _outfits = [newOutfit, ..._outfits];
       _status = OutfitStatus.loaded;
       notifyListeners();
       return true;

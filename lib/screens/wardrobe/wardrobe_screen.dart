@@ -295,67 +295,70 @@ class _ClothingCardState extends State<_ClothingCard> {
           child: ClipRRect(
             borderRadius: BorderRadius.circular(18),
             child: Stack(
-              fit: StackFit.expand,
               children: [
-                ColoredBox(
-                  color: const Color(0xFFF5EEF2),
-                  child: CachedNetworkImage(
-                    imageUrl: widget.item.imageUrl,
-                    fit: BoxFit.contain,
-                    width: double.infinity,
-                    height: double.infinity,
-                    placeholder: (context, url) => const Center(
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: AppTheme.primaryRose),
-                    ),
-                    errorWidget: (context, url, error) => const Center(
-                      child: Icon(Icons.broken_image_outlined,
-                          size: 40, color: AppTheme.textLight),
-                    ),
-                  ),
-                ),
-                // Gradient overlay + kategori etiketi
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    padding: const EdgeInsets.fromLTRB(10, 28, 10, 10),
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [Colors.black87, Colors.transparent],
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            widget.item.category,
-                            style: GoogleFonts.poppins(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600),
-                            overflow: TextOverflow.ellipsis,
+                // Fotoğraf + kategori etiketi (minimal, gradient yok)
+                Column(
+                  children: [
+                    Expanded(
+                      child: ColoredBox(
+                        color: const Color(0xFFFAF4F7),
+                        child: CachedNetworkImage(
+                          imageUrl: widget.item.imageUrl,
+                          fit: BoxFit.contain,
+                          width: double.infinity,
+                          height: double.infinity,
+                          placeholder: (context, url) => const Center(
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: AppTheme.primaryRose),
+                          ),
+                          errorWidget: (context, url, error) => const Center(
+                            child: Icon(Icons.broken_image_outlined,
+                                size: 40, color: AppTheme.textLight),
                           ),
                         ),
-                        ...widget.item.colors.take(3).map((colorName) {
-                          final c = _colorMap[colorName] ?? Colors.grey;
-                          return Container(
-                            width: 9,
-                            height: 9,
-                            margin: const EdgeInsets.only(left: 4),
-                            decoration: BoxDecoration(
-                              color: c,
-                              shape: BoxShape.circle,
-                              border: Border.all(color: Colors.white60, width: 0.5),
-                            ),
-                          );
-                        }),
-                      ],
+                      ),
                     ),
-                  ),
+                    // Kategori + renk noktaları — beyaz şerit
+                    Container(
+                      height: 30,
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 10),
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        border: Border(
+                          top: BorderSide(color: Color(0xFFEDD5E2), width: 0.5),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              widget.item.category,
+                              style: GoogleFonts.poppins(
+                                  color: AppTheme.textDark,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          ...widget.item.colors.take(3).map((colorName) {
+                            final c = _colorMap[colorName] ?? Colors.grey;
+                            return Container(
+                              width: 8,
+                              height: 8,
+                              margin: const EdgeInsets.only(left: 3),
+                              decoration: BoxDecoration(
+                                color: c,
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                    color: const Color(0xFFDDDDDD), width: 0.5),
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
                 // Uzun basma ipucu — sağ üstte küçük silme ikonu
                 Positioned(

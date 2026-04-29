@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../models/clothing_item_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../providers/clothing_provider.dart';
+import '../../providers/outfit_provider.dart';
 import '../../providers/weather_provider.dart';
 import '../../services/ai_service.dart';
 import '../../theme/app_theme.dart';
@@ -637,7 +638,7 @@ class _ErrorCard extends StatelessWidget {
 }
 
 // ─── Suggestion Card ─────────────────────────────────────────────────────────
-class _SuggestionCard extends StatelessWidget {
+class _SuggestionCard extends StatefulWidget {
   final OutfitSuggestion suggestion;
   final List<ClothingItem> allItems;
   final int outfitNumber;
@@ -648,12 +649,38 @@ class _SuggestionCard extends StatelessWidget {
     required this.outfitNumber,
   });
 
+  @override
+  State<_SuggestionCard> createState() => _SuggestionCardState();
+}
+
+class _SuggestionCardState extends State<_SuggestionCard> {
+  bool _saved = false;
+  bool _saving = false;
+
   /// AI bazen "ID:xxxx" formatında döner, bazen sadece "xxxx" — ikisini de yakala.
   List<ClothingItem> get _matchedItems {
-    final cleanIds = suggestion.itemIds
+    final cleanIds = widget.suggestion.itemIds
         .map((id) => id.startsWith('ID:') ? id.substring(3) : id)
         .toSet();
-    return allItems.where((item) => cleanIds.contains(item.id)).toList();
+    return widget.allItems.where((item) => cleanIds.contains(item.id)).toList();
+  }
+
+  Future<void> _saveOutfit() async {
+    if (_saved || _saving) return;
+    final userId = context.read<AuthProvider>().user?.id;
+    if (userId == null) return;
+
+    setState(() => _saving = true);
+    final ok = await context.read<OutfitProvider>().addOutfit(
+          userId: userId,
+          name: widget.suggestion.styleName,
+          itemIds: widget.suggestion.itemIds,
+          description: widget.suggestion.outfitDescription,
+          makeupTips: widget.suggestion.makeupTips,
+          skincareTips: widget.suggestion.skincareTips,
+          source: 'ai',
+        );
+    if (mounted) setState(() { _saving = false; if (ok) _saved = true; });
   }
 
   @override
@@ -707,7 +734,7 @@ class _SuggestionCard extends StatelessWidget {
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    suggestion.styleName,
+                    widget.suggestion.styleName,
                     style: GoogleFonts.playfairDisplay(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
@@ -716,8 +743,34 @@ class _SuggestionCard extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                const Icon(Icons.auto_awesome_rounded,
-                    color: Colors.white70, size: 16),
+                if (_saving)
+                  const SizedBox(
+                    width: 16, height: 16,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: Colors.white),
+                  )
+                else if (_saved)
+                  const Icon(Icons.check_circle_rounded,
+                      color: Colors.white, size: 20)
+                else
+                  GestureDetector(
+                    onTap: _saveOutfit,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withAlpha(40),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        'Kaydet',
+                        style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),
@@ -753,7 +806,7 @@ class _SuggestionCard extends StatelessWidget {
               children: [
                 // Açıklama
                 Text(
-                  suggestion.outfitDescription,
+                  widget.suggestion.outfitDescription,
                   style: GoogleFonts.poppins(
                       fontSize: 13, color: AppTheme.textMedium, height: 1.6),
                 ),
@@ -765,10 +818,10 @@ class _SuggestionCard extends StatelessWidget {
 
                 // Makyaj & cilt bakımı
                 _TipRow(icon: Icons.brush_outlined, label: 'Makyaj',
-                    text: suggestion.makeupTips),
+                    text: widget.suggestion.makeupTips),
                 const SizedBox(height: 10),
                 _TipRow(icon: Icons.spa_outlined, label: 'Cilt Bakımı',
-                    text: suggestion.skincareTips),
+                    text: widget.suggestion.skincareTips),
                 const SizedBox(height: 12),
 
                 // Motivasyon
@@ -789,7 +842,7 @@ class _SuggestionCard extends StatelessWidget {
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
-                          suggestion.motivationMessage,
+                          widget.suggestion.motivationMessage,
                           style: GoogleFonts.poppins(
                             fontSize: 12,
                             color: AppTheme.textMedium,
