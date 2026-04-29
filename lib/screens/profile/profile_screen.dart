@@ -6,14 +6,18 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../providers/auth_provider.dart';
 import '../../providers/clothing_provider.dart';
 import '../../providers/outfit_provider.dart';
+import '../../providers/planner_provider.dart';
 import '../../providers/user_provider.dart';
 import '../../services/notification_service.dart';
 import '../../services/storage_service.dart';
 import '../../theme/app_theme.dart';
 import '../history/history_screen.dart';
+import '../stats/stats_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -190,6 +194,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final clothing = context.watch<ClothingProvider>();
     final outfits = context.watch<OutfitProvider>();
     final userProv = context.watch<UserProvider>();
+    final planner = context.watch<PlannerProvider>();
     final name =
         auth.user?.displayName ?? auth.user?.email ?? 'Kullanıcı';
     final email = auth.user?.email ?? '';
@@ -329,11 +334,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 _StatsRow(
                   clothingCount: clothing.items.length,
                   outfitCount: outfits.outfits.length,
+                  plannedDays: planner.filledDaysCount,
                 ),
                 const SizedBox(height: 20),
 
                 _SectionLabel('Hesap'),
                 const SizedBox(height: 8),
+                _SettingTile(
+                  icon: Icons.bar_chart_rounded,
+                  label: 'İstatistikler',
+                  subtitle: 'Gardırop & kombin analitiği',
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(
+                          builder: (_) => const StatsScreen())),
+                ),
                 _SettingTile(
                   icon: Icons.history_rounded,
                   label: 'Giyim Geçmişi',
@@ -430,8 +444,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
 class _StatsRow extends StatelessWidget {
   final int clothingCount;
   final int outfitCount;
-  const _StatsRow(
-      {required this.clothingCount, required this.outfitCount});
+  final int plannedDays;
+  const _StatsRow({
+    required this.clothingCount,
+    required this.outfitCount,
+    required this.plannedDays,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -444,7 +462,7 @@ class _StatsRow extends StatelessWidget {
         Expanded(
             child: _StatCard(value: '$outfitCount', label: 'Kombin')),
         const SizedBox(width: 12),
-        const Expanded(child: _StatCard(value: '✓', label: 'Ajanda')),
+        Expanded(child: _StatCard(value: '$plannedDays/7', label: 'Ajanda')),
       ],
     );
   }
@@ -752,6 +770,11 @@ class _StylePickerSheetState extends State<_StylePickerSheet> {
 class _HelpSheet extends StatelessWidget {
   const _HelpSheet();
 
+  Future<void> _launch(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
   @override
   Widget build(BuildContext context) {
     return _BaseSheet(
@@ -762,7 +785,7 @@ class _HelpSheet extends StatelessWidget {
             icon: Icons.email_outlined,
             title: 'E-posta Desteği',
             subtitle: 'destek@stilya.app',
-            onTap: () {},
+            onTap: () => _launch('mailto:destek@stilya.app?subject=Stilya%20Destek'),
           ),
           const SizedBox(height: 8),
           _HelpItem(
@@ -781,14 +804,14 @@ class _HelpSheet extends StatelessWidget {
             icon: Icons.privacy_tip_outlined,
             title: 'Gizlilik Politikası',
             subtitle: 'Verilerinin nasıl kullanıldığını öğren',
-            onTap: () {},
+            onTap: () => _launch('https://stilya.app/privacy'),
           ),
           const SizedBox(height: 8),
           _HelpItem(
             icon: Icons.star_outline_rounded,
             title: 'Uygulamayı Değerlendir',
-            subtitle: 'App Store / Google Play',
-            onTap: () {},
+            subtitle: 'Google Play',
+            onTap: () => _launch('https://play.google.com/store/apps/details?id=com.stilya.app'),
           ),
         ],
       ),

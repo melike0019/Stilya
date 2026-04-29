@@ -20,6 +20,9 @@ class PlannerProvider extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   bool get isLoading => _status == PlannerStatus.loading;
 
+  int get filledDaysCount =>
+      _currentWeek?.days.values.where((v) => v != null && v.isNotEmpty).length ?? 0;
+
   void watchWeek(String userId, DateTime date) {
     _focusDate = date;
     _status = PlannerStatus.loading;
