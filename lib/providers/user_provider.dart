@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/user_model.dart';
 import '../services/user_service.dart';
+import '../services/badge_service.dart';
 import 'dart:async';
 
 enum UserStatus { initial, loading, loaded, error }
@@ -140,6 +141,41 @@ class UserProvider extends ChangeNotifier {
     } catch (e) {
       _setError(e.toString());
     }
+  }
+
+  // --- ROZET KONTROL & ÖDÜLLENDIR ---
+  // Mevcut durumu alır, henüz kazanılmamış rozetleri verir ve bildirir.
+  // Yeni kazanılan rozet adlarını döner (snackbar için).
+  Future<List<String>> checkAndAwardBadges({
+    required String userId,
+    required int clothingCount,
+    required int outfitCount,
+    required int aiOutfitCount,
+    required int historyCount,
+    required int plannedDays,
+  }) async {
+    if (_user == null) return [];
+
+    final toAward = BadgeService.compute(
+      user: _user!,
+      clothingCount: clothingCount,
+      outfitCount: outfitCount,
+      aiOutfitCount: aiOutfitCount,
+      historyCount: historyCount,
+      plannedDays: plannedDays,
+    );
+
+    final newTitles = <String>[];
+    for (final badgeId in toAward) {
+      await addBadge(userId: userId, badge: badgeId);
+      final def = BadgeService.findById(badgeId);
+      if (def != null) {
+        newTitles.add('${def.emoji} ${def.title}');
+        // Her rozet XP kazandırır
+        await addXP(userId: userId, amount: def.xpReward);
+      }
+    }
+    return newTitles;
   }
 
   // --- KULLANICI VERİSİNİ TEMİZLE ---

@@ -10,9 +10,11 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/clothing_provider.dart';
+import '../../providers/history_provider.dart';
 import '../../providers/outfit_provider.dart';
 import '../../providers/planner_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../services/badge_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/storage_service.dart';
 import '../../theme/app_theme.dart';
@@ -195,6 +197,34 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final outfits = context.watch<OutfitProvider>();
     final userProv = context.watch<UserProvider>();
     final planner = context.watch<PlannerProvider>();
+    final history = context.watch<HistoryProvider>();
+
+    // Her veri değişiminde rozet kontrolü yap
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      if (!mounted) return;
+      final userId = auth.user?.id;
+      if (userId == null || userProv.user == null) return;
+      final messenger = ScaffoldMessenger.of(context);
+      final aiCount = outfits.outfits.where((o) => o.source == 'ai').length;
+      final newBadges = await userProv.checkAndAwardBadges(
+        userId: userId,
+        clothingCount: clothing.items.length,
+        outfitCount: outfits.outfits.length,
+        aiOutfitCount: aiCount,
+        historyCount: history.entries.length,
+        plannedDays: planner.filledDaysCount,
+      );
+      if (newBadges.isNotEmpty) {
+        for (final b in newBadges) {
+          messenger.showSnackBar(
+            SnackBar(
+              content: Text('Yeni rozet kazandın: $b'),
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+    });
     final name =
         auth.user?.displayName ?? auth.user?.email ?? 'Kullanıcı';
     final email = auth.user?.email ?? '';
@@ -336,6 +366,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   outfitCount: outfits.outfits.length,
                   plannedDays: planner.filledDaysCount,
                 ),
+                const SizedBox(height: 12),
+                _XpBar(xp: userProv.xpPoints),
+                const SizedBox(height: 20),
+                _BadgeSection(earnedIds: userProv.badges),
                 const SizedBox(height: 20),
 
                 _SectionLabel('Hesap'),
@@ -967,6 +1001,271 @@ class _SheetTile extends StatelessWidget {
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: AppTheme.textDark)),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─── XP Bar ──────────────────────────────────────────────────────────────────
+class _XpBar extends StatelessWidget {
+  final int xp;
+  const _XpBar({required this.xp});
+
+  // Her 100 XP = 1 seviye
+  int get _level => (xp / 100).floor() + 1;
+  int get _xpInLevel => xp % 100;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppTheme.dividerColor),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 32,
+                height: 32,
+                decoration: const BoxDecoration(
+                  gradient: AppTheme.primaryGradient,
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    '$_level',
+                    style: GoogleFonts.playfairDisplay(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Seviye $_level',
+                          style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppTheme.textDark),
+                        ),
+                        Text(
+                          '$xp XP',
+                          style: GoogleFonts.poppins(
+                              fontSize: 11, color: AppTheme.primaryRose),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: _xpInLevel / 100,
+                        minHeight: 6,
+                        backgroundColor: AppTheme.bgEnd,
+                        valueColor: const AlwaysStoppedAnimation(
+                            AppTheme.primaryRose),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Rozet Bölümü ─────────────────────────────────────────────────────────────
+class _BadgeSection extends StatelessWidget {
+  final List<String> earnedIds;
+  const _BadgeSection({required this.earnedIds});
+
+  @override
+  Widget build(BuildContext context) {
+    final earned = BadgeService.earned(earnedIds);
+    final locked = BadgeService.locked(earnedIds);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Bölüm başlığı
+        Row(
+          children: [
+            Text(
+              'ROZETLER'.toUpperCase(),
+              style: GoogleFonts.poppins(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: AppTheme.textLight,
+                  letterSpacing: 1),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppTheme.lightRose,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Text(
+                '${earned.length}/${BadgeService.all.length}',
+                style: GoogleFonts.poppins(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: AppTheme.primaryRose),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppTheme.dividerColor),
+          ),
+          child: Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              // Kazanılmış rozetler
+              ...earned.map((b) => _BadgeChip(badge: b, isEarned: true)),
+              // Kilitli rozetler
+              ...locked.map((b) => _BadgeChip(badge: b, isEarned: false)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _BadgeChip extends StatelessWidget {
+  final BadgeDef badge;
+  final bool isEarned;
+  const _BadgeChip({required this.badge, required this.isEarned});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => showDialog(
+        context: context,
+        builder: (_) => AlertDialog(
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              Text(badge.emoji,
+                  style: const TextStyle(fontSize: 24)),
+              const SizedBox(width: 10),
+              Text(badge.title,
+                  style: GoogleFonts.playfairDisplay(
+                      fontSize: 16, fontWeight: FontWeight.w700)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(badge.description,
+                  style: GoogleFonts.poppins(
+                      fontSize: 13, color: AppTheme.textMedium)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  const Icon(Icons.star_rounded,
+                      size: 14, color: AppTheme.gold),
+                  const SizedBox(width: 4),
+                  Text('+${badge.xpReward} XP',
+                      style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppTheme.gold)),
+                  const SizedBox(width: 12),
+                  Icon(
+                    isEarned
+                        ? Icons.check_circle_rounded
+                        : Icons.lock_outline_rounded,
+                    size: 14,
+                    color: isEarned
+                        ? AppTheme.primaryRose
+                        : AppTheme.textLight,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    isEarned ? 'Kazanıldı' : 'Kilitli',
+                    style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: isEarned
+                            ? AppTheme.primaryRose
+                            : AppTheme.textLight),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Tamam',
+                  style: GoogleFonts.poppins(
+                      color: AppTheme.primaryRose,
+                      fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+      ),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: isEarned
+              ? AppTheme.primaryRose.withAlpha(15)
+              : AppTheme.bgEnd,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isEarned
+                ? AppTheme.primaryRose.withAlpha(80)
+                : AppTheme.dividerColor,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              isEarned ? badge.emoji : '🔒',
+              style: TextStyle(
+                  fontSize: 16,
+                  color: isEarned ? null : Colors.black26),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              badge.title,
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                fontWeight: isEarned ? FontWeight.w600 : FontWeight.w400,
+                color: isEarned
+                    ? AppTheme.primaryRose
+                    : AppTheme.textLight,
+              ),
+            ),
           ],
         ),
       ),
