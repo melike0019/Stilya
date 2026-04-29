@@ -8,6 +8,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/clothing_provider.dart';
 import '../../theme/app_theme.dart';
 import 'add_clothing_screen.dart';
+import 'blind_spot_screen.dart';
 
 // ─── Silme onayı ─────────────────────────────────────────────────────────────
 Future<void> _confirmDelete(
@@ -139,6 +140,9 @@ class _WardrobeScreenState extends State<WardrobeScreen> {
       ),
       body: Column(
         children: [
+          // Kör nokta uyarısı
+          if (clothing.forgottenItems.isNotEmpty)
+            _BlindSpotBanner(count: clothing.forgottenItems.length),
           if (categories.length > 1) _buildCategoryFilter(clothing, categories),
           Expanded(child: _buildBody(clothing, items)),
         ],
@@ -382,6 +386,50 @@ class _ClothingCardState extends State<_ClothingCard> {
               ],
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Kör Nokta Banner ────────────────────────────────────────────────────────
+class _BlindSpotBanner extends StatelessWidget {
+  final int count;
+  const _BlindSpotBanner({required this.count});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const BlindSpotScreen()),
+      ),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Color(0xFF5A2D4C), AppTheme.darkRose],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+        ),
+        child: Row(
+          children: [
+            const Text('♻️', style: TextStyle(fontSize: 16)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '$count kıyafet 30+ gündür giyilmedi — Keşfet',
+                style: GoogleFonts.poppins(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white),
+              ),
+            ),
+            const Icon(Icons.chevron_right_rounded,
+                color: Colors.white, size: 18),
+          ],
         ),
       ),
     );

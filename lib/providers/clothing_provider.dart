@@ -36,6 +36,15 @@ class ClothingProvider extends ChangeNotifier {
     return ['Tümü', ...cats];
   }
 
+  // 30+ gündür giyilmemiş kıyafetler (kör nokta analizi)
+  List<ClothingItem> get forgottenItems {
+    final threshold = DateTime.now().subtract(const Duration(days: 30));
+    return _items.where((item) {
+      final lastDate = item.lastWornAt ?? item.createdAt;
+      return lastDate.isBefore(threshold);
+    }).toList();
+  }
+
   // --- KIYAFETLERİ YÜKLE ---
   Future<void> loadItems(String userId) async {
     _setLoading();

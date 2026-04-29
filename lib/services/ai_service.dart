@@ -178,6 +178,101 @@ KESİN KURALLAR (İHLAL ETMEDİĞİNDEN EMİN OL):
   }
 
   // -------------------------------------------------------------------------
+  // KÖR NOKTA ANALİZİ — Uzun süredir giyilmemiş parçalarla kombin öner
+  // -------------------------------------------------------------------------
+  Future<List<OutfitSuggestion>> getBlindSpotSuggestion({
+    required List<ClothingItem> forgottenItems,
+    required List<ClothingItem> allItems,
+  }) async {
+    _checkApiKey();
+
+    final validIds = allItems.map((i) => i.id).toSet();
+
+    final forgottenList = forgottenItems.map((i) {
+      final days = DateTime.now().difference(i.lastWornAt ?? i.createdAt).inDays;
+      return '• ID:${i.id} | ${i.category} | '
+          'Renkler: ${i.colors.join(", ")} | '
+          'Mevsimler: ${i.seasons.join(", ")} | '
+          '$days gündür giyilmedi';
+    }).join('\n');
+
+    final allList = allItems.map((i) =>
+        '• ID:${i.id} | ${i.category} | Renkler: ${i.colors.join(", ")}')
+        .join('\n');
+
+    final validIdList = allItems.map((i) => i.id).join(', ');
+
+    const systemPrompt =
+        'Sen STILYA uygulamasının yapay zeka stil asistanısın. '
+        'Görevin kullanıcının uzun süredir giymediği kıyafetleri yeniden keşfettirmek. '
+        'Yanıtını HER ZAMAN geçerli bir JSON nesnesi olarak ver, '
+        'başka hiçbir metin veya markdown işareti ekleme.';
+
+    final userPrompt = '''
+UZUN SÜREDİR GİYİLMEYEN KIYAFETLER (Her kombinде en az biri kullanılmalı):
+$forgottenList
+
+TÜM GARDİROP (Kombinleri tamamlamak için kullanabilirsin):
+$allList
+
+GEÇERLİ ID LİSTESİ: $validIdList
+
+KESİN KURALLAR:
+1. itemIds alanına YALNIZCA yukarıdaki GEÇERLİ ID LİSTESİ'ndeki ID'leri yaz.
+2. Her kombinде en az bir "uzun süredir giyilmeyen" parça OLMALI.
+3. Tüm metinleri düz Türkçe yaz — markdown işareti kullanma.
+4. Farklılaşan EN AZ 3 kombin öner.
+5. outfitDescription'da o parçanın neden bu kombinle mükemmel uyum sağladığını belirt.
+6. Yalnızca aşağıdaki JSON formatında yanıt ver:
+
+{
+  "outfits": [
+    {
+      "styleName": "stilin kısa adı",
+      "itemIds": ["sadece geçerli ID'ler"],
+      "outfitDescription": "neden bu parçayı yeniden keşfetmen gerektiğini anlatan 2-3 cümle",
+      "makeupTips": "bu kombinle uyumlu makyaj önerisi",
+      "skincareTips": "cilt bakım hatırlatması",
+      "motivationMessage": "gardırobundaki bu gizli hazineyi keşfetmen için ilham verici mesaj"
+    }
+  ]
+}''';
+
+    final raw = await _callGroq(
+      messages: [
+        {'role': 'system', 'content': systemPrompt},
+        {'role': 'user', 'content': userPrompt},
+      ],
+      maxTokens: 2048,
+    );
+
+    final jsonStr = _extractJson(raw);
+    try {
+      final data = jsonDecode(jsonStr) as Map<String, dynamic>;
+      final list = data['outfits'] as List? ?? [];
+      if (list.isEmpty) throw 'Boş liste';
+
+      final outfits = list
+          .map((o) => OutfitSuggestion.fromJson(o as Map<String, dynamic>))
+          .map((o) => OutfitSuggestion(
+                styleName: o.styleName,
+                itemIds: o.itemIds.where(validIds.contains).toList(),
+                outfitDescription: o.outfitDescription,
+                makeupTips: o.makeupTips,
+                skincareTips: o.skincareTips,
+                motivationMessage: o.motivationMessage,
+              ))
+          .where((o) => o.itemIds.isNotEmpty)
+          .toList();
+
+      if (outfits.isEmpty) throw 'Geçerli kombin bulunamadı';
+      return outfits;
+    } catch (_) {
+      throw 'AI yanıtı işlenemedi. Lütfen tekrar dene.';
+    }
+  }
+
+  // -------------------------------------------------------------------------
   // CHAT — Çok turlu doğal dil konuşması
   // -------------------------------------------------------------------------
   Future<String> chat({
