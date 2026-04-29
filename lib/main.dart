@@ -11,6 +11,7 @@ import 'providers/planner_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/weather_provider.dart';
 import 'screens/splash_screen.dart';
+import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
 
 void main() async {
@@ -18,6 +19,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await NotificationService().init();
   runApp(
     MultiProvider(
       providers: [

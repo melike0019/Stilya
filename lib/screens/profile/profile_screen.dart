@@ -10,6 +10,7 @@ import '../../providers/auth_provider.dart';
 import '../../providers/clothing_provider.dart';
 import '../../providers/outfit_provider.dart';
 import '../../providers/user_provider.dart';
+import '../../services/notification_service.dart';
 import '../../services/storage_service.dart';
 import '../../theme/app_theme.dart';
 import '../history/history_screen.dart';
@@ -153,6 +154,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .read<UserProvider>()
         .updateProfile(userId: userId, styleProfile: selected);
     if (mounted) _snack('Stil tercihin güncellendi.');
+  }
+
+  // ── Bildirimler ───────────────────────────────────────────────────
+  Future<void> _showNotifications() async {
+    final granted =
+        await NotificationService().requestPermission();
+    if (!mounted) return;
+    if (!granted) {
+      _snack('Bildirim izni verilmedi. Ayarlardan etkinleştir.');
+      return;
+    }
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _NotificationSheet(),
+    );
   }
 
   // ── Yardım & Destek ───────────────────────────────────────────────
@@ -335,6 +352,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   label: 'Şifre Değiştir',
                   subtitle: 'E-posta ile sıfırlama',
                   onTap: _changePassword,
+                ),
+                _SettingTile(
+                  icon: Icons.notifications_outlined,
+                  label: 'Bildirimler',
+                  subtitle: 'Günlük & haftalık hatırlatıcılar',
+                  onTap: _showNotifications,
                 ),
                 const SizedBox(height: 16),
 
@@ -923,6 +946,163 @@ class _SheetTile extends StatelessWidget {
                     color: AppTheme.textDark)),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Bildirim Ayarları Sheet ──────────────────────────────────────────────────
+class _NotificationSheet extends StatefulWidget {
+  const _NotificationSheet();
+
+  @override
+  State<_NotificationSheet> createState() => _NotificationSheetState();
+}
+
+class _NotificationSheetState extends State<_NotificationSheet> {
+  bool _daily = false;
+  bool _weekly = false;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final prefs = await NotificationService().getPreferences();
+    if (mounted) {
+      setState(() {
+        _daily = prefs['notif_daily'] ?? false;
+        _weekly = prefs['notif_weekly'] ?? false;
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _BaseSheet(
+      title: 'Bildirimler',
+      child: _loading
+          ? const Center(
+              child: CircularProgressIndicator(
+                  color: AppTheme.primaryRose))
+          : Column(
+              children: [
+                _NotifToggle(
+                  icon: Icons.wb_sunny_outlined,
+                  title: 'Günlük Hatırlatıcı',
+                  subtitle: 'Her sabah 08:00\'de kombin önerisi',
+                  value: _daily,
+                  onChanged: (v) async {
+                    setState(() => _daily = v);
+                    await NotificationService()
+                        .scheduleDailyReminder(v);
+                  },
+                ),
+                const SizedBox(height: 12),
+                _NotifToggle(
+                  icon: Icons.calendar_month_outlined,
+                  title: 'Haftalık Ajanda',
+                  subtitle: 'Her Pazar 20:00\'de hafta planı hatırlatması',
+                  value: _weekly,
+                  onChanged: (v) async {
+                    setState(() => _weekly = v);
+                    await NotificationService()
+                        .scheduleWeeklyReminder(v);
+                  },
+                ),
+                const SizedBox(height: 16),
+                if (_daily || _weekly)
+                  TextButton(
+                    onPressed: () async {
+                      await NotificationService().cancelAll();
+                      if (mounted) {
+                        setState(() {
+                          _daily = false;
+                          _weekly = false;
+                        });
+                      }
+                    },
+                    child: Text(
+                      'Tüm bildirimleri kapat',
+                      style: GoogleFonts.poppins(
+                          fontSize: 12, color: AppTheme.textLight),
+                    ),
+                  ),
+              ],
+            ),
+    );
+  }
+}
+
+class _NotifToggle extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _NotifToggle({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: value
+            ? AppTheme.primaryRose.withAlpha(10)
+            : AppTheme.bgStart,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color:
+              value ? AppTheme.primaryRose.withAlpha(80) : AppTheme.dividerColor,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: value ? AppTheme.primaryRose.withAlpha(20) : AppTheme.lightRose,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon,
+                size: 17,
+                color: value ? AppTheme.primaryRose : AppTheme.textLight),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppTheme.textDark)),
+                Text(subtitle,
+                    style: GoogleFonts.poppins(
+                        fontSize: 11, color: AppTheme.textLight)),
+              ],
+            ),
+          ),
+          Switch(
+            value: value,
+            onChanged: onChanged,
+            activeThumbColor: AppTheme.primaryRose,
+            activeTrackColor: AppTheme.primaryRose.withAlpha(100),
+          ),
+        ],
       ),
     );
   }
