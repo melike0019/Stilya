@@ -6,6 +6,8 @@ import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/clothing_provider.dart';
 import 'providers/outfit_provider.dart';
+import 'providers/history_provider.dart';
+import 'providers/planner_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/weather_provider.dart';
 import 'screens/splash_screen.dart';
@@ -33,6 +35,12 @@ void main() async {
         ),
         ChangeNotifierProvider<WeatherProvider>(
           create: (_) => WeatherProvider(),
+        ),
+        ChangeNotifierProvider<PlannerProvider>(
+          create: (_) => PlannerProvider(),
+        ),
+        ChangeNotifierProvider<HistoryProvider>(
+          create: (_) => HistoryProvider(),
         ),
       ],
       child: const StilyaApp(),

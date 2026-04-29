@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 
 import '../../providers/auth_provider.dart';
 import '../../providers/clothing_provider.dart';
+import '../../providers/outfit_provider.dart';
 import '../../theme/app_theme.dart';
+import '../history/history_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -13,6 +15,7 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final auth     = context.watch<AuthProvider>();
     final clothing = context.watch<ClothingProvider>();
+    final outfits  = context.watch<OutfitProvider>();
     final name     = auth.user?.displayName ?? auth.user?.email ?? 'Kullanıcı';
     final email    = auth.user?.email ?? '';
     final initial  = name.isNotEmpty ? name[0].toUpperCase() : '?';
@@ -98,12 +101,24 @@ class ProfileScreen extends StatelessWidget {
             sliver: SliverList(
               delegate: SliverChildListDelegate([
                 // Stats row
-                _StatsRow(clothingCount: clothing.items.length),
+                _StatsRow(
+                  clothingCount: clothing.items.length,
+                  outfitCount: outfits.outfits.length,
+                ),
                 const SizedBox(height: 20),
 
                 // Settings section
                 _SectionLabel('Hesap'),
                 const SizedBox(height: 8),
+                _SettingTile(
+                  icon: Icons.history_rounded,
+                  label: 'Giyim Geçmişi',
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const HistoryScreen()),
+                  ),
+                ),
                 _SettingTile(
                   icon: Icons.person_outline_rounded,
                   label: 'Profil Bilgileri',
@@ -187,7 +202,8 @@ class ProfileScreen extends StatelessWidget {
 // ─── Stats Row ───────────────────────────────────────────────────────────────
 class _StatsRow extends StatelessWidget {
   final int clothingCount;
-  const _StatsRow({required this.clothingCount});
+  final int outfitCount;
+  const _StatsRow({required this.clothingCount, required this.outfitCount});
 
   @override
   Widget build(BuildContext context) {
@@ -195,9 +211,9 @@ class _StatsRow extends StatelessWidget {
       children: [
         Expanded(child: _StatCard(value: '$clothingCount', label: 'Kıyafet')),
         const SizedBox(width: 12),
-        const Expanded(child: _StatCard(value: '0', label: 'Kombin')),
+        Expanded(child: _StatCard(value: '$outfitCount', label: 'Kombin')),
         const SizedBox(width: 12),
-        const Expanded(child: _StatCard(value: '0', label: 'Ajanda')),
+        const Expanded(child: _StatCard(value: '✓', label: 'Ajanda')),
       ],
     );
   }

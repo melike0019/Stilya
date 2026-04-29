@@ -722,7 +722,7 @@ class _SuggestionCardState extends State<_SuggestionCard> {
                   ),
                   child: Center(
                     child: Text(
-                      '$outfitNumber',
+                      '${widget.outfitNumber}',
                       style: GoogleFonts.poppins(
                         fontSize: 13,
                         fontWeight: FontWeight.w700,
