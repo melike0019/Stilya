@@ -9,6 +9,7 @@ import '../../providers/clothing_provider.dart';
 import '../../theme/app_theme.dart';
 import 'add_clothing_screen.dart';
 import 'blind_spot_screen.dart';
+import 'clothing_detail_screen.dart';
 
 // ─── Silme onayı ─────────────────────────────────────────────────────────────
 Future<void> _confirmDelete(
@@ -278,6 +279,10 @@ class _ClothingCardState extends State<_ClothingCard> {
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      onTap: () => Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => ClothingDetailScreen(item: widget.item)),
+      ),
       onLongPress: () => _confirmDelete(context, widget.item),
       onLongPressStart: (_) => setState(() => _pressing = true),
       onLongPressEnd: (_) => setState(() => _pressing = false),
