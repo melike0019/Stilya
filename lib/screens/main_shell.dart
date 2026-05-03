@@ -29,7 +29,7 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell> with WidgetsBindingObserver {
   int _currentIndex = 0;
   StreamSubscription<AccelerometerEvent>? _accelSub;
   DateTime _lastShake = DateTime(2000);
@@ -54,7 +54,17 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _startListening();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _accelSub?.resume();
+    } else {
+      _accelSub?.pause();
+    }
   }
 
   void _startListening() {
@@ -140,6 +150,7 @@ class _MainShellState extends State<MainShell> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _accelSub?.cancel();
     super.dispose();
   }

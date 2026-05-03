@@ -11,6 +11,7 @@ import 'providers/planner_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/weather_provider.dart';
 import 'screens/splash_screen.dart';
+import 'services/ai_service.dart';
 import 'services/notification_service.dart';
 import 'theme/app_theme.dart';
 
@@ -43,6 +44,9 @@ void main() async {
         ),
         ChangeNotifierProvider<HistoryProvider>(
           create: (_) => HistoryProvider(),
+        ),
+        Provider<AIService>(
+          create: (_) => AIService(),
         ),
       ],
       child: const StilyaApp(),

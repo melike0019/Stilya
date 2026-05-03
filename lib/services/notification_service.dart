@@ -16,11 +16,15 @@ class NotificationService {
   static const _keyDaily = 'notif_daily';
   static const _keyWeekly = 'notif_weekly';
 
+  // Sabit kanal ID'leri — değiştirilmemeli (Android kanal kaydı kalıcıdır)
+  static const _channelIdDaily  = 'stilya_daily_reminder';
+  static const _channelIdWeekly = 'stilya_weekly_agenda';
+
   // ── Başlatma ──────────────────────────────────────────────────────
   Future<void> init() async {
     tz.initializeTimeZones();
-    final tzName = await FlutterTimezone.getLocalTimezone();
-    tz.setLocalLocation(tz.getLocation(tzName));
+    final tzInfo = await FlutterTimezone.getLocalTimezone();
+    tz.setLocalLocation(tz.getLocation(tzInfo.identifier));
 
     await _plugin.initialize(
       settings: const InitializationSettings(
@@ -75,7 +79,7 @@ class NotificationService {
       title: 'Günaydın! ☀️',
       body: 'Bugün ne giyeceğini planladın mı? Stilya seni bekliyor.',
       scheduledDate: scheduled,
-      notificationDetails: _details('Günlük Hatırlatıcı'),
+      notificationDetails: _details(_channelIdDaily, 'Günlük Hatırlatıcı'),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.time,
     );
@@ -107,7 +111,7 @@ class NotificationService {
       title: 'Haftana hazır mısın? 📅',
       body: 'Bu haftanın kombinlerini planlamak için Ajanda\'ya bak!',
       scheduledDate: scheduled,
-      notificationDetails: _details('Haftalık Ajanda'),
+      notificationDetails: _details(_channelIdWeekly, 'Haftalık Ajanda'),
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
     );
@@ -120,10 +124,10 @@ class NotificationService {
     await _savePref(_keyWeekly, false);
   }
 
-  NotificationDetails _details(String channelName) {
+  NotificationDetails _details(String channelId, String channelName) {
     return NotificationDetails(
       android: AndroidNotificationDetails(
-        channelName.toLowerCase().replaceAll(' ', '_'),
+        channelId,
         channelName,
         importance: Importance.high,
         priority: Priority.high,

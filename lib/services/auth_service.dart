@@ -1,10 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import '../models/user_model.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final GoogleSignIn _googleSignIn = GoogleSignIn();
 
   // Mevcut kullanıcıyı stream olarak dinle
   Stream<User?> get authStateChanges => _auth.authStateChanges();
@@ -104,13 +107,91 @@ class AuthService {
     }
   }
 
+  // --- GOOGLE İLE GİRİŞ ---
+  Future<UserModel?> signInWithGoogle() async {
+    try {
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) return null; // Kullanıcı iptal etti
+
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      final userCredential = await _auth.signInWithCredential(credential);
+      final user = userCredential.user;
+      if (user == null) return null;
+
+      // Firestore belgesini kontrol et / oluştur
+      final ref = _firestore.collection('users').doc(user.uid);
+      final doc = await ref.get();
+
+      if (doc.exists) {
+        return UserModel.fromFirestore(doc.data()!, doc.id);
+      }
+
+      // Yeni kullanıcı — Firestore'a kaydet
+      final userModel = UserModel(
+        id: user.uid,
+        email: user.email ?? '',
+        displayName: user.displayName ?? googleUser.displayName ?? '',
+        photoURL: user.photoURL,
+        xpPoints: 0,
+        badges: [],
+        createdAt: DateTime.now(),
+      );
+      await ref.set(userModel.toFirestore());
+      return userModel;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'account-exists-with-different-credential') {
+        throw 'Bu e-posta adresi zaten e-posta/şifre ile kayıtlı. '
+            'Lütfen e-posta ve şifrenizle giriş yapın.';
+      }
+      throw _handleAuthException(e);
+    } catch (e) {
+      throw 'Google ile giriş başarısız: $e';
+    }
+  }
+
   // --- HESAP SİL ---
   Future<void> deleteAccount() async {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    // Firestore dokümanını sil
-    await _firestore.collection('users').doc(user.uid).delete();
+    final uid = user.uid;
+    final userRef = _firestore.collection('users').doc(uid);
+
+    // Alt koleksiyonları sil
+    const subcollections = ['wardrobe', 'outfits', 'history', 'weeklyPlan', 'planner'];
+    for (final col in subcollections) {
+      final snap = await userRef.collection(col).get();
+      for (final doc in snap.docs) {
+        await doc.reference.delete();
+      }
+    }
+
+    // Firebase Storage: kıyafet fotoğrafları
+    try {
+      final clothingRef = FirebaseStorage.instance.ref().child('clothing/$uid');
+      final list = await clothingRef.listAll();
+      for (final item in list.items) {
+        await item.delete();
+      }
+    } catch (_) {
+      // Klasör yoksa sessizce geç
+    }
+
+    // Firebase Storage: profil fotoğrafı
+    try {
+      await FirebaseStorage.instance
+          .ref()
+          .child('users/$uid/profile.jpg')
+          .delete();
+    } catch (_) {}
+
+    // Ana Firestore dokümanını sil
+    await userRef.delete();
 
     // Firebase Auth hesabını sil
     await user.delete();

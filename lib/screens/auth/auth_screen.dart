@@ -248,6 +248,12 @@ class _AuthScreenState extends State<AuthScreen>
               // ─── Submit Button ─────────────────────────────────
               _buildSubmitButton(auth),
 
+              // ─── Google Sign-In ────────────────────────────────
+              const SizedBox(height: 14),
+              _buildDivider(),
+              const SizedBox(height: 14),
+              _buildGoogleButton(auth),
+
               // ─── Forgot Password (login only) ──────────────────
               if (_isLogin) ...[
                 const SizedBox(height: 12),
@@ -438,6 +444,58 @@ class _AuthScreenState extends State<AuthScreen>
     );
   }
 
+  Widget _buildDivider() {
+    return Row(
+      children: [
+        const Expanded(child: Divider()),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Text(
+            'veya',
+            style: GoogleFonts.poppins(fontSize: 12, color: AppTheme.textLight),
+          ),
+        ),
+        const Expanded(child: Divider()),
+      ],
+    );
+  }
+
+  Widget _buildGoogleButton(AuthProvider auth) {
+    final loading = _submitting || auth.isLoading;
+    return OutlinedButton(
+      onPressed: loading ? null : () async {
+        setState(() { _localError = null; _submitting = true; });
+        final ok = await auth.signInWithGoogle();
+        if (!mounted) return;
+        if (!ok && auth.errorMessage != null) {
+          setState(() { _localError = auth.errorMessage; });
+        }
+        setState(() => _submitting = false);
+      },
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(double.infinity, 52),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        side: const BorderSide(color: AppTheme.dividerColor),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          // Google "G" ikonu — renk kutuları ile oluşturulmuş
+          _GoogleIcon(),
+          const SizedBox(width: 10),
+          Text(
+            'Google ile devam et',
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w500,
+              color: AppTheme.textDark,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showForgotPassword() {
     final emailCtrl = TextEditingController();
     showModalBottomSheet(
@@ -511,6 +569,64 @@ class _AuthScreenState extends State<AuthScreen>
       },
     );
   }
+}
+
+// ─── Google Icon (renk ile çizilmiş) ──────────────────────────────────────
+class _GoogleIcon extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 20,
+      height: 20,
+      child: CustomPaint(painter: _GoogleIconPainter()),
+    );
+  }
+}
+
+class _GoogleIconPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final r = size.width / 2;
+    final cx = r;
+    final cy = r;
+
+    // Daire arka plan
+    canvas.drawCircle(
+      Offset(cx, cy),
+      r,
+      Paint()..color = Colors.white,
+    );
+
+    // G harfi — 4 renk dilimi ile
+    const strokeW = 4.0;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeW
+      ..strokeCap = StrokeCap.round;
+
+    // Mavi
+    paint.color = const Color(0xFF4285F4);
+    canvas.drawArc(Rect.fromCircle(center: Offset(cx, cy), radius: r - strokeW / 2),
+        -0.25, 1.6, false, paint);
+
+    // Kırmızı
+    paint.color = const Color(0xFFEA4335);
+    canvas.drawArc(Rect.fromCircle(center: Offset(cx, cy), radius: r - strokeW / 2),
+        1.35, 0.85, false, paint);
+
+    // Sarı
+    paint.color = const Color(0xFFFBBC05);
+    canvas.drawArc(Rect.fromCircle(center: Offset(cx, cy), radius: r - strokeW / 2),
+        2.2, 0.65, false, paint);
+
+    // Yeşil
+    paint.color = const Color(0xFF34A853);
+    canvas.drawArc(Rect.fromCircle(center: Offset(cx, cy), radius: r - strokeW / 2),
+        2.85, 0.65, false, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 // ─── Tab Option Widget ─────────────────────────────────────────────────────

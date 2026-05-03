@@ -34,7 +34,7 @@ class _BlindSpotScreenState extends State<BlindSpotScreen> {
     });
 
     try {
-      final results = await AIService().getBlindSpotSuggestion(
+      final results = await context.read<AIService>().getBlindSpotSuggestion(
         forgottenItems: forgotten,
         allItems: all,
       );

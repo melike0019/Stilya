@@ -52,7 +52,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
     _scrollToBottom();
 
     try {
-      final reply = await AIService().chat(
+      final reply = await context.read<AIService>().chat(
         history: List.from(_messages),
         clothingItems: widget.clothingItems,
       );

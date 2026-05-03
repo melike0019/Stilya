@@ -53,6 +53,8 @@ GoogleService-Info.plist
 
 # API anahtarları — asla GitHub'a gönderme
 lib/core/api_config.dart
+run_config.sh
+run_config.bat
 
 # Firebase Functions
 functions/.runtimeconfig.json

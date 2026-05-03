@@ -135,6 +135,22 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  // --- GOOGLE İLE GİRİŞ ---
+  Future<bool> signInWithGoogle() async {
+    _errorMessage = null;
+    try {
+      final user = await _authService.signInWithGoogle();
+      if (user == null) return false; // İptal edildi
+      _user = user;
+      _status = AuthStatus.authenticated;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _setError(e.toString());
+      return false;
+    }
+  }
+
   // --- ÇIKIŞ YAP ---
   Future<void> signOut() async {
     _setLoading();
@@ -150,20 +166,16 @@ class AuthProvider extends ChangeNotifier {
 
   // --- ŞİFRE SIFIRLA ---
   Future<bool> resetPassword(String email) async {
-  _setLoading();
-  try {
-    await _authService.resetPassword(email);
-    // Önceki duruma geri dön, oturumu etkileme
-    _status = _user != null 
-        ? AuthStatus.authenticated 
-        : AuthStatus.unauthenticated;
-    notifyListeners();
-    return true;
-  } catch (e) {
-    _setError(e.toString());
-    return false;
+    _errorMessage = null;
+    try {
+      await _authService.resetPassword(email);
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
+    }
   }
-}
 
   // --- KULLANICI VERİSİNİ YENİLE (fotoğraf vb. güncelleme sonrası) ---
   Future<void> refreshUser() async {

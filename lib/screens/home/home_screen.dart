@@ -91,7 +91,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
 
     try {
-      final results = await AIService().getOutfitSuggestion(
+      final results = await context.read<AIService>().getOutfitSuggestion(
         items: clothing.items,
         weather: weatherProv.weather!,
         mood: _selectedMood,

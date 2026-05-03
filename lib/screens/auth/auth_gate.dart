@@ -48,7 +48,7 @@ class _AuthGateState extends State<AuthGate> {
       return const AuthScreen();
     }
 
-    return const MainShell();
+    return MainShell(key: ValueKey(auth.user?.id));
   }
 }
 
